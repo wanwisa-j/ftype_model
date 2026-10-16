@@ -181,8 +181,12 @@ def detect_model_artifacts(model_version):
         'best_model.h5'
     ]
     
+    if PRED_CFG.get('model_file'):
+        model_patterns = [PRED_CFG['model_file']]
+
     for pattern in model_patterns:
-        model_files = [f for f in os.listdir(base_dir) if f.endswith(('.keras', '.h5'))]
+        import glob
+        model_files = [os.path.basename(f) for f in glob.glob(os.path.join(base_dir, pattern))]
         if model_files:
             # Use the most recent model file
             artifacts['model_path'] = os.path.join(base_dir, sorted(model_files)[-1])
@@ -610,7 +614,7 @@ def prepare_prediction_data(zones=None, years=None, features=None, classes=['DDF
     return result
 
 
-def load_raster_data(feature_dir, year, feature_name):
+def load_raster_data(feature_dir, year, feature_name, window=None):
     """
     Load raster data for a specific feature and year.
     
@@ -622,6 +626,8 @@ def load_raster_data(feature_dir, year, feature_name):
         Year to load data for
     feature_name : str
         Name of the feature (e.g., 'VV', 'VH', 'lai', etc.)
+    window : rasterio.windows.Window, optional
+        Read only this window (e.g. the AOI bounding box) instead of the full raster
     
     Returns:
     --------
@@ -651,11 +657,11 @@ def load_raster_data(feature_dir, year, feature_name):
     print(f"Loading {feature_name} data from: {file_path}")
     
     with rasterio.open(file_path) as src:
-        data = src.read()  # Read all bands
-        transform = src.transform
+        data = src.read(window=window)  # Read all bands
+        transform = src.window_transform(window) if window is not None else src.transform
         crs = src.crs
         nodata = src.nodata
-        bounds = src.bounds
+        bounds = rasterio.windows.bounds(window, src.transform) if window is not None else src.bounds
         
         # Handle nodata values
         if nodata is not None:
@@ -667,8 +673,8 @@ def load_raster_data(feature_dir, year, feature_name):
             'bounds': bounds,
             'nodata': nodata,
             'shape': data.shape,
-            'width': src.width,
-            'height': src.height
+            'width': data.shape[-1],
+            'height': data.shape[-2]
         }
     
     return {
@@ -697,8 +703,9 @@ def create_union_mask(data_dicts):
     for i, data_dict in enumerate(data_dicts):
         data = data_dict['data']
         if data.ndim == 3:  # Timeseries data
-            # Create mask where all timesteps are NaN or invalid
-            mask = np.isnan(data).all(axis=0) | (data == -9999).all(axis=0)
+            # Mask pixels with any NaN timestep (NaN input -> NaN proba -> argmax 0 = DDF)
+            # or where all timesteps are invalid
+            mask = np.isnan(data).any(axis=0) | (data == -9999).all(axis=0)
         else:  # Static data
             # Create mask for single layer, squeeze if needed
             if data.ndim == 3 and data.shape[0] == 1:
@@ -1048,7 +1055,8 @@ def load_scaling_params(config_dir, model_version=None):
     return scaling_params
 
 
-def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, model_version='2.2.2'):
+def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, model_version='2.2.2',
+                      window=None, extra_mask=None, batch_size=128):
     """
     Process a single zone and year.
     
@@ -1078,8 +1086,7 @@ def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, m
     zone_dir = os.path.join(data_dir, zone)
     
     if not os.path.exists(zone_dir):
-        print(f"Zone directory not found: {zone_dir}")
-        return None
+        raise FileNotFoundError(f"Zone directory not found: {zone_dir}")
     
     try:
         # Load timeseries features - CRITICAL: Must match training script EXACTLY
@@ -1089,7 +1096,7 @@ def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, m
         
         print(f"🔍 Loading features in training-consistent order: {feature_names}")
         for feature_name in feature_names:
-            data_dict = load_raster_data(zone_dir, year, feature_name)
+            data_dict = load_raster_data(zone_dir, year, feature_name, window=window)
             timeseries_dicts.append(data_dict)
         
         # Load static features - MUST match training order: slope, elevation
@@ -1097,12 +1104,16 @@ def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, m
         static_names = ['slope', 'elevation']  # Fixed: Match training script order
         
         for feature_name in static_names:
-            data_dict = load_raster_data(zone_dir, year, feature_name)
+            data_dict = load_raster_data(zone_dir, year, feature_name, window=window)
             static_dicts.append(data_dict)
         
         # Create union mask
         all_dicts = timeseries_dicts + static_dicts
         union_mask = create_union_mask(all_dicts)
+        if extra_mask is not None:
+            # e.g. pixels outside the AOI polygons: skip them entirely
+            union_mask = union_mask | extra_mask
+            print(f"After extra mask: {np.sum(~union_mask)} pixels to predict")
         
         # Reshape and stack features
         timeseries_array, static_array = reshape_and_stack_features(
@@ -1122,7 +1133,7 @@ def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, m
         # Make predictions
         print("Making predictions...")
         probabilities = model.predict([X_timeseries_scaled, X_static_scaled], 
-                                     batch_size=128, verbose=1)
+                                     batch_size=batch_size, verbose=1)
         
         # Get predicted class indices
         predictions = np.argmax(probabilities, axis=1)
@@ -1152,7 +1163,7 @@ def process_zone_year(data_dir, zone, year, model, scaling_params, output_dir, m
         
     except Exception as e:
         print(f"Error processing {zone} - {year}: {str(e)}")
-        return None
+        raise
 
 
 def main():
@@ -1258,15 +1269,21 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     
     all_prediction_files = {}
+    failures = []
     
     for zone in zones:
         print(f"\nProcessing zone: {zone}")
         prediction_files = []
         
         for year in years:
-            pred_file = process_zone_year(
-                args.data_dir, zone, year, model, scaling_params, args.output_dir, args.model_version
-            )
+            try:
+                pred_file = process_zone_year(
+                    args.data_dir, zone, year, model, scaling_params, args.output_dir, args.model_version,
+                    batch_size=args.batch_size
+                )
+            except Exception as e:
+                failures.append(f"{zone} {year}: {e}")
+                continue
             if pred_file:
                 prediction_files.append(pred_file)
         
@@ -1289,6 +1306,12 @@ def main():
             
             majority_vote_predictions(prediction_files, majority_file, reference_metadata)
     
+    if failures:
+        print(f"\n❌ {len(failures)} zone-year(s) failed:")
+        for f in failures:
+            print(f"   {f}")
+        sys.exit(1)
+
     print("\nPrediction complete!")
     print("Summary of results:")
     for zone, files in all_prediction_files.items():

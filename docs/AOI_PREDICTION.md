@@ -17,9 +17,9 @@ data/aoi/<aoi>.geojson
 [1] หาว่าแต่ละแปลงอยู่ zone ไหน        (เทียบกับขอบเขต datacube ของแต่ละ zone)
         │
         ▼
-[2] predict ทั้ง zone × ทุกปี           src/prediction_ftype_2_2_1.py
-        │   input : datacube/<zone>/{vv,vh,gvmi,ndvi,slavi,lai,fapar,fcover,slope,elevation}
-        │   output: outputs/prediction/1.2.0/<zone>/model_version_2.2.2/pred_<year>_2_2_2-{class,proba}.tif
+[2] predict เฉพาะพิกเซลในแปลง × ทุกปี   functions ใน src/prediction_ftype_2_2_1.py
+        │   input : datacube/<zone>/{vv,...,elevation} อ่านเฉพาะ window ที่ครอบแปลง
+        │   output: outputs/aoi/<aoi>/prediction/<zone>/model_version_2.2.2/pred_<year>_2_2_2-{class,proba}.tif
         ▼
 [3] clip ตามแปลง + majority ข้ามปี      src/run_aoi_prediction.py
         │
@@ -112,7 +112,9 @@ copy มาจาก `/fs1/tor_project/model_foresttype/model/mfl_v2_2_2` แล
      - `cube_biophys_{lai,fapar,fcover}_<year>_...tif`
    - static: `slope/slope_data.tif`, `elevation/elevation_data.tif` (ใช้ทุกปีเหมือนกัน)
    - ค่า nodata ของไฟล์จะถูกแปลงเป็น NaN
-2. **Mask** (`create_union_mask`): ตัดพิกเซลที่ feature ใดก็ตามเป็น NaN หรือ -9999 **ครบทุก band**
+2. **Mask** (`create_union_mask`): ตัดพิกเซลที่ feature ใดก็ตามเป็น NaN **แม้แค่สัปดาห์เดียว** หรือเป็น -9999 ครบทุก band
+   (โค้ดเดิมตัดเฉพาะที่ NaN ทุกสัปดาห์ NaN จึงหลุดเข้าโมเดลแล้วถูกทายเป็น DDF ทั้งหมด ดูข้อ 7)
+   ถ้ารันโหมด AOI จะ mask พิกเซลนอกแปลงทิ้งด้วย (`extra_mask`)
 3. **Stack** (`reshape_and_stack_features`) ได้ `(N, 21, 8)` + `(N, 2)`
    ลำดับ channel **ต้องตรงกับตอน train** ไม่อย่างนั้นผลจะเอียงไป class เดียว (ดู `docs/MEMORY/Prediction_Pipeline_Mismatch_Issue.md`)
    - time series: `vv, vh, gvmi, ndvi, slavi, lai, fapar, fcover`
@@ -125,6 +127,8 @@ copy มาจาก `/fs1/tor_project/model_foresttype/model/mfl_v2_2_2` แล
    - `pred_<year>_2_2_2-proba.tif`: float32, 3 band (DDF, DEF, MDF), nodata `-999`
 
 argument ทั้งหมด (ค่า default มาจาก config): `--model_version --data_dir --zones --years --output_dir --batch_size --majority_vote`
+ถ้ามี zone-ปี ไหนพัง จะรัน zone-ปี อื่นต่อจนจบ แล้วสรุปรายการที่พังท้ายรันและ exit 1
+ไฟล์โมเดลเลือกจาก `prediction.model_file` (glob) ใน config
 
 ```bash
 # รันเฉพาะ zone/ปี ที่ต้องการ
@@ -138,8 +142,10 @@ docker compose run --rm dev python src/prediction_ftype_2_2_1.py --zones zone_1 
 1. **อ่าน AOI** แล้วตัดค่า Z ทิ้ง (`force_2d`)
 2. **จับคู่แปลงกับ zone**: อ่านขอบเขตของ `slope/*.tif` ทุก zone (ข้าม `*_backup_*`)
    แต่ละแปลงจะได้ zone ที่ทับซ้อนกันมากที่สุด ถ้าแปลงไม่อยู่ใน zone ไหนเลยจะขึ้น WARNING แล้วข้ามไป
-3. **Predict** เฉพาะ zone ที่ยังไม่มีไฟล์ class ครบทุกปี (ใช้ `--force` ถ้าต้องการรันใหม่)
-   ใช้ `--skip-predict` ถ้าต้องการสรุปจากผลที่มีอยู่เท่านั้น
+3. **Predict (ค่า default: โหมด AOI)** โหลดโมเดลครั้งเดียว แล้วต่อ zone: อ่านเฉพาะ window ที่ครอบแปลงของ zone นั้น
+   และ predict เฉพาะพิกเซลที่อยู่ในแปลง ผลเก็บที่ `outputs/aoi/<aoi>/prediction/`
+   ข้าม zone-ปี ที่มีไฟล์อยู่แล้ว (ใช้ `--force` ถ้าต้องการรันใหม่) ใช้ `--skip-predict` ถ้าต้องการสรุปจากผลที่มีอยู่เท่านั้น
+   `--full-zone` = แบบเดิม predict ทั้ง zone ลง `prediction.output_dir` (ช้า แต่ AOI อื่นใน zone เดียวกันใช้ผลซ้ำได้)
 4. **Majority ข้ามปี** แบบ vectorized อ่านเฉพาะ window ที่ครอบ AOI ใน zone นั้น
    - ทุกพิกเซล นับว่าแต่ละ class ชนะกี่ปี (ไม่นับ nodata) แล้วเลือก class ที่ชนะบ่อยที่สุด
    - ถ้าเสมอกันจะเลือก class ที่ index น้อยกว่า (เหมือน `scipy.stats.mode` ที่สคริปต์เดิมใช้)
@@ -167,7 +173,9 @@ CSV ใช้ encoding `utf-8-sig` เพื่อให้เปิดภาษ
 - ทุกแปลงอยู่ใน 7 zone ที่มี datacube ปี 2019-2025 ครบ จึงไม่ต้องดึง GEE ใหม่
   - เชียงใหม่: `zone_1`-`zone_5`
   - เชียงราย: `mfl_cmf_area_project_2025_chr_zone_1`, `mfl_cmf_area_project_2025_chr_zone_2`
-- ใช้เวลา predict ประมาณ 4 นาทีต่อ zone-ปี บน RTX 3080 (ทั้ง zone ~8 ล้านพิกเซล) รวม 49 zone-ปี ราว 3.5 ชั่วโมง
+- เวลา (RTX 3080, 49 zone-ปี): โหมด `--full-zone` ~1 ชม. 45 นาที, **โหมด AOI 21 นาที** (predict ~517k พิกเซล)
+  ผลโหมด AOI ตรงกับโหมดทั้ง zone **100%** ทุกพิกเซลในแปลง (`scripts/compare_predictions.py`)
+  ส่วนที่ยังกินเวลาคือการอ่าน raster เพราะแปลงเชียงรายกระจายเกือบเต็ม zone window จึงใหญ่เกือบเท่า zone
 
 **ตรวจผลเทียบกับของเดิม:** ผล `chr_zone_1` ปี 2021-2025 เทียบกับ `/fs2/ftype_mflf/result/2025/1.2.0/.../model_version_2.2.2/`
 มีพิกเซลที่ได้ class เดียวกัน **99.99%** (~4.35 ล้านพิกเซลต่อปี)
@@ -180,8 +188,11 @@ CSV ใช้ encoding `utf-8-sig` เพื่อให้เปิดภาษ
 
 - **Zone ที่ใช้ train:** ใน `scaling_params` ระบุ `training_zones` ไว้ว่ามี `chr_zone_2` (และ `mfl_cmf_2024`) ส่วน `chr_zone_1` เป็น zone ที่กันไว้ไม่ให้ใช้ train
   แปลงใน `chr_zone_2` จึงอาจมีจุดสำรวจที่ใช้ train อยู่ด้วย ความแม่นยำที่ได้ตรงนั้นจะดูดีเกินจริง
-- **Mask ตัดเฉพาะพิกเซลที่ว่างทุก band:** ถ้าบางสัปดาห์เป็น NaN พิกเซลนั้นจะเข้าโมเดลไปทั้งที่มี NaN อยู่
-  (ปกติ datacube 1.2.0 ผ่านการ interpolate แล้ว แต่ยังไม่ได้ตรวจกับ AOI นี้)
+- **NaN ใน datacube (แก้แล้ว):** biophys (lai/fapar/fcover) ของ `zone_3` ปี 2025 หายในสัปดาห์ที่ 13-18
+  โค้ดเดิมส่ง NaN เข้าโมเดล ทำให้ **28,462 พิกเซลในแปลง (31% ของ zone_3) ถูกทายเป็น DDF ทั้งหมด**
+  (ปี 2024 พิกเซลเดียวกันเป็น DDF 57% / MDF 43%) ผลใน `/fs2/ftype_mflf/result` ก็ผิดแบบเดียวกัน
+  ตอนนี้พิกเซลพวกนี้เป็น nodata ในปีนั้น ส่วน majority ใช้ปีที่เหลือ (ยอดรวมตาม majority เปลี่ยนแค่ ~1 ไร่)
+  ถ้าต้องการให้ predict ได้ครบ ต้อง interpolate ช่องว่างใน datacube ก่อน
 - **Static mask:** เงื่อนไข `slope == 0` ใน `create_union_mask` ไม่ทำงานจริง เพราะ static ถูกอ่านเป็น 3D `(1, H, W)` จึงเข้าเงื่อนไขแบบ time series แทน
 - **Predict ทั้ง zone:** ถึงแปลง AOI จะเล็ก ก็ยังเสียเวลาเท่ากับรันทั้ง zone ถ้าต้องการให้เร็วขึ้น ควรเพิ่มตัวเลือกให้ crop ตามกรอบ AOI ก่อน predict
 - **Driver 545 (CUDA 12.3) + CUDA 12.9 wheels:** ตอนนี้ใช้ได้ แต่ถ้าอัปเกรด TF แล้ว GPU หาย ให้เช็คเรื่องนี้ก่อน

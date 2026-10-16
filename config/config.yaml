@@ -12,6 +12,7 @@ cal_majority: True
 prediction:
   model_version: "2.2.2"
   model_root: "model"                      # -> model/mfl_v2_2_2/{*.keras, config/}
+  model_file: "hybrid_lstm_cnn_model-*-no-leakage.keras"   # glob inside model/mfl_v<version>/
   datacube_dir: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0"   # shared, read-only
   output_dir: "outputs/prediction/1.2.0"   # -> <zone>/model_version_<v>/pred_<year>_*.tif
   years: [2019, 2020, 2021, 2022, 2023, 2024, 2025]

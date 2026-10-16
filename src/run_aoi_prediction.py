@@ -5,8 +5,12 @@ Run forest type prediction (v2.2.x) for an AOI and summarise it per polygon.
 All paths come from config/config.yaml (`prediction` + `aoi` sections):
 
   1. Find which datacube zones the AOI polygons fall in.
-  2. Run src/prediction_ftype_2_2_1.py for those zones (skips zone-years whose
-     class raster already exists unless --force).
+  2. Predict every year, reading only the window around the AOI polygons and
+     predicting only pixels inside them (skips zone-years whose class raster
+     already exists unless --force):
+       outputs/aoi/<aoi stem>/prediction/<zone>/model_version_<v>/pred_<year>_*.tif
+     With --full-zone, predict whole zones into `prediction.output_dir` instead
+     (shared by all AOIs, much slower).
   3. Clip the yearly class rasters to each polygon, compute a per-pixel
      majority across years, and write:
        outputs/aoi/<aoi stem>/summary_long.csv      polygon x year x class areas
@@ -15,10 +19,11 @@ All paths come from config/config.yaml (`prediction` + `aoi` sections):
        outputs/aoi/<aoi stem>/rasters/<zone>_majority.tif  (AOI-masked)
 
 Usage:
-    python src/run_aoi_prediction.py [--aoi path.geojson] [--force] [--skip-predict]
+    python src/run_aoi_prediction.py [--aoi path.geojson] [--force] [--skip-predict] [--full-zone]
 """
 import argparse
 import glob
+import math
 import os
 import subprocess
 import sys
@@ -29,7 +34,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.features import geometry_mask
-from rasterio.windows import from_bounds
+from rasterio.windows import Window, from_bounds
 from shapely.geometry import box
 import yaml
 
@@ -82,7 +87,7 @@ def pred_file(out_dir, zone, year, version):
                         f"pred_{year}_{version.replace('.', '_')}-class.tif")
 
 
-def run_prediction(zones, cfg, out_dir, force):
+def run_prediction_full_zone(zones, cfg, out_dir, force):
     years = cfg['years']
     todo = [z for z in zones
             if force or not all(os.path.exists(pred_file(out_dir, z, y, cfg['model_version'])) for y in years)]
@@ -95,6 +100,50 @@ def run_prediction(zones, cfg, out_dir, force):
     subprocess.run(cmd, check=True)
 
 
+def aoi_window(part, transform, shape):
+    """Pixel window (snapped outwards to whole pixels) covering `part`, clipped to the raster."""
+    w = from_bounds(*part.total_bounds, transform=transform)
+    col0, row0 = math.floor(w.col_off), math.floor(w.row_off)
+    col1, row1 = math.ceil(w.col_off + w.width), math.ceil(w.row_off + w.height)
+    return Window(col0, row0, col1 - col0, row1 - row0).intersection(Window(0, 0, shape[1], shape[0]))
+
+
+def run_prediction_aoi(aoi, zones, cfg, pred_dir, force):
+    """Predict only the pixels inside the AOI polygons, zone by zone, in this process."""
+    import prediction_ftype_2_2_1 as P
+    from tensorflow.keras import models
+
+    version, years = cfg['model_version'], cfg['years']
+    datacube_dir = repo_path(cfg['datacube_dir'])
+    model = scaling = None
+
+    for zone in zones:
+        todo = [y for y in years if force or not os.path.exists(pred_file(pred_dir, zone, y, version))]
+        if not todo:
+            print(f'{zone}: all years already predicted, skipping (use --force to rerun)')
+            continue
+        if model is None:
+            artifacts = P.detect_model_artifacts(version)
+            model = models.load_model(artifacts['model_path'], compile=False)
+            scaling = P.load_scaling_params(artifacts['config_dir'], model_version=version)
+            print(f"Loaded model: {artifacts['model_path']}")
+
+        ref = sorted(glob.glob(os.path.join(datacube_dir, zone, 'slope', '*.tif')))[0]
+        with rasterio.open(ref) as src:
+            transform, shape, crs = src.transform, src.shape, src.crs
+        part = aoi[aoi['zone'] == zone].to_crs(crs)
+        win = aoi_window(part, transform, shape)
+        wshape = (int(win.height), int(win.width))
+        outside = geometry_mask(part.geometry, out_shape=wshape,
+                                transform=rasterio.windows.transform(win, transform))
+        print(f'{zone}: window {wshape[1]}x{wshape[0]} px, {int((~outside).sum()):,} px inside AOI '
+              f'(zone {shape[1]}x{shape[0]})')
+
+        for year in todo:
+            P.process_zone_year(datacube_dir, zone, year, model, scaling, pred_dir, version,
+                                window=win, extra_mask=outside, batch_size=cfg.get('batch_size', 128))
+
+
 def majority(stack):
     """Per-pixel mode over axis 0 ignoring NODATA; ties -> smallest class (as scipy.stats.mode)."""
     n_cls = int(stack[stack != NODATA].max()) + 1 if (stack != NODATA).any() else 1
@@ -104,14 +153,14 @@ def majority(stack):
     return out
 
 
-def summarise(aoi, cfg, cfg_aoi, out_dir, aoi_out, classes):
+def summarise(aoi, cfg, cfg_aoi, pred_dir, aoi_out, classes):
     version, years = cfg['model_version'], cfg['years']
     id_fields = [f for f in cfg_aoi['id_fields'] if f in aoi.columns]
     long_rows, maj_rows = [], []
     os.makedirs(os.path.join(aoi_out, 'rasters'), exist_ok=True)
 
     for zone, part in aoi.groupby('zone'):
-        files = {y: pred_file(out_dir, zone, y, version) for y in years}
+        files = {y: pred_file(pred_dir, zone, y, version) for y in years}
         missing = [y for y, f in files.items() if not os.path.exists(f)]
         if missing:
             print(f'WARNING: {zone} missing predictions for {missing}, skipped those years')
@@ -179,12 +228,14 @@ if __name__ == '__main__':
     ap.add_argument('--aoi', default=cfg_aoi['path'], help='AOI vector file (default from config)')
     ap.add_argument('--force', action='store_true', help='Rerun prediction even if outputs exist')
     ap.add_argument('--skip-predict', action='store_true', help='Only summarise existing predictions')
+    ap.add_argument('--full-zone', action='store_true',
+                    help='Predict whole zones into prediction.output_dir (slow) instead of AOI pixels only')
     args = ap.parse_args()
 
     aoi_path = repo_path(args.aoi)
     stem = os.path.splitext(os.path.basename(aoi_path))[0]
-    out_dir = repo_path(cfg['output_dir'])
     aoi_out = os.path.join(repo_path(cfg_aoi['output_dir']), stem)
+    pred_dir = repo_path(cfg['output_dir']) if args.full_zone else os.path.join(aoi_out, 'prediction')
     os.makedirs(aoi_out, exist_ok=True)
 
     aoi = gpd.read_file(aoi_path)
@@ -199,10 +250,13 @@ if __name__ == '__main__':
     zones = sorted(aoi.loc[~outside, 'zone'].unique())
 
     if not args.skip_predict:
-        run_prediction(zones, cfg, out_dir, args.force)
+        if args.full_zone:
+            run_prediction_full_zone(zones, cfg, pred_dir, args.force)
+        else:
+            run_prediction_aoi(aoi[~outside], zones, cfg, pred_dir, args.force)
 
     classes = class_names(cfg)
-    long_df, maj_df = summarise(aoi[~outside], cfg, cfg_aoi, out_dir, aoi_out, classes)
+    long_df, maj_df = summarise(aoi[~outside], cfg, cfg_aoi, pred_dir, aoi_out, classes)
     long_df.to_csv(os.path.join(aoi_out, 'summary_long.csv'), index=False, encoding='utf-8-sig')
     maj_df.to_csv(os.path.join(aoi_out, 'summary_majority.csv'), index=False, encoding='utf-8-sig')
 
