@@ -14,6 +14,7 @@ Features:
 - Data validation and consistency checks
 """
 
+import os
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Tuple, Optional
@@ -36,7 +37,10 @@ class ForestTypeDatasetBuilder:
             dataset_path: Path to the cleaned parquet dataset
         """
         if dataset_path is None:
-            dataset_path = '/fs2/ftype_mflf/shared_data/dataset/1.2.0/raw/forest_type_dataset_raw_20250909_102320.parquet'
+            import yaml
+            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            with open(os.path.join(repo_root, 'config', 'config.yaml')) as f:
+                dataset_path = yaml.safe_load(f)['paths']['training_dataset']
         
         self.dataset_path = dataset_path
         print(f"Loading dataset from: {dataset_path}")

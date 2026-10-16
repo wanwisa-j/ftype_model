@@ -53,8 +53,14 @@ np.random.seed(42)
 tf.random.set_seed(42)
 
 # Add project paths
-sys.path.append('/fs1/tor_project/model_foresttype/src')
+import yaml
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(REPO_ROOT, 'src'))
 from dataset_builder import ForestTypeDatasetBuilder
+
+with open(os.path.join(REPO_ROOT, 'config', 'config.yaml')) as _f:
+    _model_root = yaml.safe_load(_f)['prediction']['model_root']
+MODEL_ROOT = _model_root if os.path.isabs(_model_root) else os.path.join(REPO_ROOT, _model_root)
 
 
 class ForestTypeTrainer:
@@ -385,7 +391,7 @@ class ForestTypeTrainer:
                         print(f"  {class_name}: {c} samples")
         
         # Create model save directory
-        model_dir = f'/fs1/tor_project/model_foresttype/model/mfl_v{self.model_version.replace(".", "_")}'
+        model_dir = os.path.join(MODEL_ROOT, f'mfl_v{self.model_version.replace(".", "_")}')
         os.makedirs(model_dir, exist_ok=True)
         
         callbacks = [
@@ -504,7 +510,7 @@ class ForestTypeTrainer:
         print("🔄 Saving model and artifacts...")
         
         # Create directories
-        model_dir = f'/fs1/tor_project/model_foresttype/model/mfl_v{self.model_version.replace(".", "_")}'
+        model_dir = os.path.join(MODEL_ROOT, f'mfl_v{self.model_version.replace(".", "_")}')
         config_dir = f'{model_dir}/config'
         os.makedirs(model_dir, exist_ok=True)
         os.makedirs(config_dir, exist_ok=True)

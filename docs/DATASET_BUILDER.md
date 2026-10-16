@@ -2,7 +2,8 @@
 
 > ย้ายมาจาก README เดิมของ repo ต้นทาง ใช้สำหรับสร้าง dataset ตอน train ไม่เกี่ยวกับการ predict ตาม AOI
 > (ดู [AOI_PREDICTION.md](AOI_PREDICTION.md)) บางสคริปต์ที่อ้างถึงด้านล่าง เช่น `run_single_zone_verification.sh`
-> และ `run_zone_verification_parallel.sh` ไม่มีอยู่ใน repo แล้ว ส่วน `dataset_builder.py` ที่ root เป็นไฟล์ว่าง ตัวจริงอยู่ที่ `src/`
+> และ `run_zone_verification_parallel.sh` ไม่มีอยู่ใน repo แล้ว ตัว builder อยู่ที่ `src/dataset_builder.py`
+> ส่วน path ของ dataset ตั้งค่า default ไว้ที่ `paths.training_dataset` ใน `config/config.yaml`
 
 This repository contains a comprehensive pipeline for forest type classification using multi-source satellite data. The pipeline includes data processing, quality verification, dataset creation, and model training components.
 

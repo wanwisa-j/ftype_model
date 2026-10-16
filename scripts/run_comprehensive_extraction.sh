@@ -53,7 +53,7 @@ echo ""
 
 # Create output directories
 mkdir -p /fs2/ftype_mflf/shared_data/dataset/1.2.0/{raw,processed,metadata}
-mkdir -p /fs1/tor_project/model_foresttype/logs
+mkdir -p logs
 
 echo "🏗️  Starting comprehensive extraction process..."
 echo "⏰ Start time: $(date)"
@@ -68,7 +68,7 @@ if [ $? -eq 0 ]; then
     echo "✅ Comprehensive extraction completed successfully!"
     echo "⏰ End time: $(date)"
     echo "📊 Check output in: /fs2/ftype_mflf/shared_data/dataset/1.2.0/"
-    echo "📝 Log file: /fs1/tor_project/model_foresttype/logs/extraction_comprehensive_*.log"
+    echo "📝 Log file: logs/extraction_comprehensive_*.log"
     echo ""
     echo "🎉 Complete forest type dataset with ALL indices ready!"
     echo "📋 Summary:"
@@ -79,6 +79,6 @@ if [ $? -eq 0 ]; then
 else
     echo ""
     echo "❌ Extraction failed!"
-    echo "📝 Check log file: /fs1/tor_project/model_foresttype/logs/extraction_comprehensive_*.log"
+    echo "📝 Check log file: logs/extraction_comprehensive_*.log"
     exit 1
 fi

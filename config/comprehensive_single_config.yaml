@@ -56,4 +56,4 @@ output:
 
 logging:
   level: "INFO"
-  file: "/fs1/tor_project/model_foresttype/logs/extraction_comprehensive_{timestamp}.log"
+  file: "logs/extraction_comprehensive_{timestamp}.log"

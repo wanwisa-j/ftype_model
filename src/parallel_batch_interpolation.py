@@ -4,6 +4,7 @@ Parallel batch interpolation with verification and safe replacement.
 Processes multiple TIF files simultaneously using all available CPU cores.
 """
 
+import os
 import subprocess
 import time
 import shutil
@@ -340,7 +341,7 @@ def main():
     """Main function to run batch interpolation."""
     
     # Configuration
-    interpolation_script = "/fs1/tor_project/model_foresttype/src/raster_interpolation_ultra_fast.py"
+    interpolation_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "raster_interpolation_ultra_fast.py")
     file_list_path = "/fs2/ftype_mflf/shared_data/interpolated/CORRECTED_files_needing_interpolation.txt"
     max_workers = 16  # Use 16 workers for maximum throughput
     

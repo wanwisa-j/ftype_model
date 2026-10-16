@@ -24,7 +24,7 @@ ZONE_NAME="$1"
 # Paths
 DATACUBE_DIR="/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/$ZONE_NAME"
 AOI_FILE="/fs3/datacenter/ftype_mflf/shared_data/boundary/$ZONE_NAME-fit_areas.parquet"
-SCRIPT_PATH="/fs1/tor_project/model_foresttype/src/raster_clip_align.py"
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/src/raster_clip_align.py"
 
 echo "Aligning Biophysical Datacubes for $ZONE_NAME"
 echo "============================================="

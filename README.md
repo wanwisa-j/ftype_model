@@ -68,6 +68,7 @@ docker compose up -d jupyter                                                    
 | `prediction.datacube_dir` | `/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0` (mount แบบ read-only) |
 | `prediction.years` | 2019–2025 |
 | `aoi.path`, `aoi.id_fields`, `aoi.output_dir` | ไฟล์ AOI, คอลัมน์ที่จะใส่ใน output, โฟลเดอร์ output |
+| `paths.training_dataset`, `paths.logs_dir` | dataset สำหรับ train (`dataset_builder`), โฟลเดอร์ log |
 
 ข้อมูลกลางทั้งหมดถูก mount แบบ **read-only** ใน container ผลทุกอย่างจะเขียนได้เฉพาะใน `outputs/` ของ repo
 
@@ -99,31 +100,31 @@ docker compose run --rm dev python scripts/compare_predictions.py <dir A> <dir B
   (โค้ดเดิมทายเป็น DDF ทั้งหมด และผลใน `/fs2/ftype_mflf/result` ก็โดนแบบเดียวกัน) ถ้าต้องการให้ predict ได้ครบ ต้อง interpolate ก่อน
 - **DEF ออกมาน้อยมาก** (AOI ป่าชุมชน 53 แปลง: DEF 0.3%) ควรเทียบกับข้อมูลภาคสนามก่อนนำไปใช้
 - **AOI นอก 7 zone** ยังรันไม่ได้ ต้องสร้าง datacube ใหม่ก่อน (GEE export → biophys → datacube) ขั้นตอนนี้ยังเป็น notebook และสคริปต์ที่ฝังชื่อ zone ไว้
-- **ไฟล์ที่ root และใน `scripts/`** ส่วนใหญ่เป็นสคริปต์ตรวจข้อมูลแบบใช้ครั้งเดียวจาก repo ต้นทาง มี path ตายตัว และยังไม่ได้จัดระเบียบ
+- **ขั้นสร้าง datacube / extraction / interpolation** ยังเขียนผลลงข้อมูลกลางโดยตรง ใน Docker จะล้มเพราะข้อมูลกลาง mount แบบ read-only (ตั้งใจ)
 
 ## Repo structure
 
 ```
 ├── src/
-│   ├── run_aoi_prediction.py      ★ entry point: AOI → predict → summary
-│   ├── prediction_ftype_2_2_1.py  ★ โหลด datacube, mask, scaling, predict (v2.2.x)
-│   ├── dataset_builder.py           สร้าง dataset สำหรับ train
-│   └── ...                          prep/interpolation/alignment ของ datacube
+│   ├── run_aoi_prediction.py           ★ entry point: AOI → predict → summary
+│   ├── prediction_ftype_2_2_1.py       ★ โหลด datacube, mask, scaling, predict (v2.2.x)
+│   ├── dataset_builder.py                สร้าง dataset สำหรับ train
+│   ├── weekly_biophys_aggregation.py     datacube: biophys รายสัปดาห์
+│   ├── raster_clip_align.py              datacube: clip/align
+│   └── batch_interpolate.py, raster_interpolation_ultra_fast.py, ...   datacube: เติมช่องว่าง
 ├── scripts/
-│   ├── docker_setup_env.sh        ★ สร้าง env
-│   ├── compare_predictions.py     ★ regression check
-│   └── train_model_v2_2_1.py        train
-├── config/config.yaml             ★ path และค่าตั้งค่าทั้งหมด
-├── model/mfl_v2_2_2/              ★ โมเดลที่ใช้
-├── docs/
-│   ├── AOI_PREDICTION.md          ★ หลักการทำงานโดยละเอียด
-│   ├── DATASET_BUILDER.md           คู่มือ dataset builder (README เดิม)
-│   ├── final_pipline/               ที่มาของข้อมูลและการสร้าง datacube
-│   └── models/                      รายละเอียดโมเดลแต่ละเวอร์ชัน
-├── Dockerfile, docker-compose.yml
-├── environment.yml                  แพ็กเกจ (conda-forge)
-├── data/aoi/                        ไฟล์ AOI (ไม่อยู่ใน git)
-└── outputs/                         ผลลัพธ์ (ไม่อยู่ใน git)
+│   ├── docker_setup_env.sh             ★ สร้าง env
+│   ├── compare_predictions.py          ★ regression check
+│   ├── train_model_v2_2_1.py             train (เซฟโมเดลลง model/)
+│   ├── extract_forest_type_dataset.py    ดึงค่าที่จุดสำรวจ (+ run_extraction.sh)
+│   └── datacube_zone_verification.py     ตรวจ datacube (+ verify_all_zones_sequential.sh)
+├── config/config.yaml                  ★ path และค่าตั้งค่าหลัก (config อื่นใน config/ ใช้กับ extraction)
+├── model/mfl_v2_2_2/                   ★ โมเดลที่ใช้
+├── docs/                                 เริ่มที่ docs/README.md
+├── archive/                              สคริปต์เก่า/ใช้ครั้งเดียวจาก repo ต้นทาง (เก็บไว้อ้างอิง ไม่ได้ดูแลต่อ)
+├── Dockerfile, docker-compose.yml, environment.yml
+├── data/aoi/                             ไฟล์ AOI (ไม่อยู่ใน git)
+└── outputs/                              ผลลัพธ์ (ไม่อยู่ใน git)
 ```
 
 ★ = ส่วนที่ใช้ในการ predict ตาม AOI

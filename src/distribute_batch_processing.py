@@ -5,7 +5,11 @@ Creates file splits and setup instructions for parallel processing.
 """
 
 import math
+import os
 from pathlib import Path
+
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SRC_DIR)
 import json
 
 def distribute_files_across_machines(file_list_path: str, num_machines: int = 4):
@@ -80,7 +84,7 @@ Auto-generated for distributed processing.
 
 import sys
 import os
-sys.path.append('/fs1/tor_project/model_foresttype/src')
+sys.path.append('{SRC_DIR}')
 
 from parallel_batch_interpolation import BatchInterpolationManager
 import logging
@@ -92,7 +96,7 @@ def run_machine_{machine_id}_batch():
     """Run batch processing for Machine {machine_id}."""
     
     # Configuration
-    interpolation_script = "/fs1/tor_project/model_foresttype/src/raster_interpolation_ultra_fast.py"
+    interpolation_script = "{SRC_DIR}/raster_interpolation_ultra_fast.py"
     file_list_path = "{file_list_path}"
     max_workers = 16  # Adjust based on machine specs
     
@@ -153,7 +157,7 @@ if __name__ == "__main__":
                 f"# Machine {machine_id} Setup & Run Commands",
                 "",
                 "# 1. Navigate to project directory",
-                "cd /fs1/tor_project/model_foresttype",
+                f"cd {REPO_ROOT}",
                 "",
                 "# 2. Activate conda environment", 
                 "eval \"$(conda shell.bash hook)\"",

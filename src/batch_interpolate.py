@@ -15,6 +15,7 @@ Example:
 """
 
 import argparse
+import os
 import logging
 from pathlib import Path
 import sys
@@ -42,8 +43,8 @@ def process_file(input_file, output_file, nodata_value=None, chunk_size=512):
     try:
         # Build command using the ultra-fast version
         cmd = [
-            'python', 
-            '/fs1/tor_project/model_foresttype/src/raster_interpolation_ultra_fast.py',
+            sys.executable,
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'raster_interpolation_ultra_fast.py'),
             str(input_file),
             str(output_file),
             '--chunk_size', str(chunk_size)

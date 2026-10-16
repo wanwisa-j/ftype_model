@@ -87,7 +87,7 @@ aoi:
 แล้วแก้ `aoi.path` หรือส่งเป็น argument: `--aoi data/aoi/<file>.geojson`
 ถ้าชื่อ field ต่างจากเดิม ให้แก้ `id_fields` ด้วย (field ที่ไม่มีในไฟล์จะถูกข้ามไป)
 
-ส่วน `model:` / `retroactive_years` / `cal_majority` ด้านบนเป็นของ `src/prediction_ftype.py` (v1.0.0) ไม่เกี่ยวกับ flow นี้
+section `paths:` (`training_dataset`, `logs_dir`) ใช้กับสคริปต์ dataset/train ไม่เกี่ยวกับ flow นี้
 
 ### Model artifacts (`model/mfl_v2_2_2/`)
 
@@ -206,3 +206,6 @@ CSV ใช้ encoding `utf-8-sig` เพื่อให้เปิดภาษ
 - `environment.yml`: แก้ `cftime=1.6.4.post1` เป็น `1.6.4` และเอา channel `defaults` ออก
 - เพิ่ม: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/docker_setup_env.sh`, `src/run_aoi_prediction.py`, section `prediction`/`aoi` ใน config
 - ไม่ได้ copy venv `tf/` ของเดิมมา เพราะมี path ของพี่ฝังอยู่และใช้กับเครื่องนี้ไม่ได้
+- จัดระเบียบ repo: สคริปต์ใช้ครั้งเดียว, สคริปต์ predict รุ่นเก่า, interpolation แบบอื่น และ config ทดสอบ ย้ายไป `archive/`
+  ลบไฟล์ว่าง ส่วนโค้ดที่ยังใช้จะไม่อ้างถึง `src`/`model`/`logs` ใน `/fs1/tor_project/model_foresttype` แล้ว
+  (train จะเซฟโมเดลลง `model/` ของ repo นี้)

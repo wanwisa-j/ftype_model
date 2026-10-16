@@ -1,5 +1,5 @@
 #!/bin/bash
-"""
+: '
 Sequential Zone Verification Script
 ===================================
 
@@ -23,13 +23,13 @@ Options:
 
 Author: Generated for Forest Type Model Pipeline v1.2.0
 Date: 2025-09-10
-"""
+'
 
 # Configuration
 DATACUBE_BASE_PATH="/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0"
-SCRIPT_DIR="/fs1/tor_project/model_foresttype"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERIFICATION_SCRIPT="datacube_zone_verification.py"
-OUTPUT_BASE_DIR="/fs1/tor_project/model_foresttype/verification_results_sequential"
+OUTPUT_BASE_DIR="$(dirname "$SCRIPT_DIR")/outputs/verification_results_sequential"
 
 # Options
 STOP_ON_FAILURE=false
