@@ -1,291 +1,129 @@
-# Forest Type Model Pipeline
+# ftype_model: Forest Type Classification
 
-This repository contains a comprehensive pipeline for forest type classification using multi-source satellite data. The pipeline includes data processing, quality verification, dataset creation, and model training components.
+จำแนกประเภทป่า **DDF** (ป่าเต็งรัง) / **DEF** (ป่าดิบแล้ง) / **MDF** (ป่าเบญจพรรณ)
+จากข้อมูลรายสัปดาห์ของ Sentinel-1, Sentinel-2 และ biophysical (21 สัปดาห์) ร่วมกับ slope และ elevation
+ด้วยโมเดล hybrid LSTM-CNN **v2.2.2** รันตาม AOI (แปลงพื้นที่) ผ่าน Docker
 
-## Pipeline Overview
+```
+AOI (.geojson) ──► หาว่าอยู่ zone ไหน ──► predict เฉพาะพิกเซลในแปลง (2019–2025) ──► majority ข้ามปี ──► สรุปไร่/% รายแปลง
+```
 
-The complete pipeline processes satellite data through multiple stages:
+---
 
-1. **Data Sources**: Google Earth Engine exports and biophysical parameters
-2. **Preprocessing**: Raster alignment and interpolation  
-3. **Quality Verification**: Comprehensive datacube validation
-4. **Dataset Creation**: Training dataset extraction from verified datacubes
-5. **Model Training**: Forest type classification using verified data
+## Quick start
 
-## Key Features
-
-- **Multi-source Data Integration**: Combines optical, SAR, and biophysical features
-- **Automated Quality Assurance**: Comprehensive verification before dataset creation
-- **Flexible Dataset Builder**: Create custom training datasets
-- **Scalable Processing**: Support for multiple zones and years
-- **Production Ready**: Robust error handling and documentation
-
-## Quick Start
-
-### 1. Datacube Verification
-Before using any data, verify datacube quality:
+ต้องมี Docker, NVIDIA container runtime และสิทธิ์อ่าน datacube ที่ `/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0`
 
 ```bash
-# Verify single zone
-./run_single_zone_verification.sh zone_1
+git clone git@github.com:wanwisa-j/ftype_model.git
+cd ftype_model
 
-# Verify all zones in parallel
-./run_zone_verification_parallel.sh
+docker compose build dev                                       # image ขนาดเล็ก (~90 MB)
+docker compose run --rm dev bash scripts/docker_setup_env.sh   # สร้าง env ครั้งแรก (~10 GB ที่ .venv-docker/)
 
-# Sequential verification (lower resource usage)
-./verify_all_zones_sequential.sh
+docker compose run --rm dev python src/run_aoi_prediction.py   # รัน AOI ตาม config
 ```
 
-### 2. Dataset Creation
-After verification passes, create training datasets:
+คำสั่งอื่นที่ใช้บ่อย
 
-```python
-from dataset_builder import ForestTypeDatasetBuilder
-
-# Initialize builder
-builder = ForestTypeDatasetBuilder()
-
-# Create dataset from verified datacube
-dataset = builder.create_dataset(
-    zones=['mfl_cmf_2024', 'mfl_cmf_area_project_2025_chr_zone_1'],
-    years=[2020.0, 2021.0],
-    features=['vv', 'vh', 'ndvi', 'slope'],
-    target='ftype_mix'
-)
-
-# Access the data
-vv_features = dataset['vv_feature']      # Shape: (N, 21)
-vh_features = dataset['vh_feature']      # Shape: (N, 21)
-ndvi_features = dataset['ndvi_feature']  # Shape: (N, 21)
-slope_features = dataset['slope_feature'] # Shape: (N, 1)
-targets = dataset['target']             # Shape: (N, 1)
+```bash
+docker compose run --rm dev python src/run_aoi_prediction.py --aoi data/aoi/<file>.geojson   # AOI อื่น
+docker compose run --rm dev python src/run_aoi_prediction.py --skip-predict                  # สรุปใหม่จากผลที่มีอยู่
+docker compose run --rm dev python src/run_aoi_prediction.py --force                         # predict ใหม่ทั้งหมด
+docker compose run --rm dev bash                                                             # shell ใน container
+docker compose up -d jupyter                                                                 # JupyterLab :8899
 ```
 
-## Data Quality Assurance
+> env (Python 3.12, GDAL, TF 2.21 + CUDA) ไม่ได้อยู่ใน image แต่เก็บไว้ที่ `.venv-docker/` ใน repo
+> เพราะดิสก์ของ Docker บนเครื่อง dev เกือบเต็ม รายละเอียดอยู่ใน [docs/AOI_PREDICTION.md](docs/AOI_PREDICTION.md#2-environment-docker)
 
-The pipeline includes comprehensive quality verification to ensure datacube integrity:
+## AOI ใหม่
 
-- ✅ **Structure Verification**: All expected features present
-- ✅ **Geometry Verification**: Consistent CRS, transforms, and shapes  
-- ✅ **Temporal Verification**: Correct 21-band structure for time series
-- ✅ **Data Quality**: NoData handling and interpolation validation
+1. วางไฟล์ vector ที่มี CRS (GeoJSON/GPKG/SHP) ไว้ที่ `data/aoi/` **ไม่บังคับชื่อคอลัมน์** ใช้แค่ geometry
+2. แก้ `aoi.path` ใน `config/config.yaml` หรือส่งผ่าน `--aoi`
+3. ถ้าอยากให้ชื่อแปลงติดไปใน output ให้ใส่ชื่อคอลัมน์ไว้ที่ `aoi.id_fields`
 
-**Only use verified datacubes for dataset creation and model training.**
+แปลงต้องอยู่ใน zone ที่มี datacube อยู่แล้ว คือ `zone_1`–`zone_5` (เชียงใหม่) และ `mfl_cmf_area_project_2025_chr_zone_1/2` (เชียงราย)
+แปลงที่อยู่นอก zone จะขึ้น WARNING แล้วถูกข้ามไป
 
-## Quick Start
+## Output
 
-```python
-from dataset_builder import ForestTypeDatasetBuilder
+`outputs/aoi/<ชื่อไฟล์ AOI>/`
 
-# Initialize builder
-builder = ForestTypeDatasetBuilder()
+| ไฟล์ | เนื้อหา |
+|---|---|
+| `<aoi>_ftype.geojson` | แปลงพร้อม `dominant_class`, `<class>_rai`, `<class>_pct` เปิดใน QGIS ได้เลย |
+| `summary_majority.csv` | 1 แถวต่อแปลง (majority 2019–2025) |
+| `summary_long.csv` | แปลง × ปี × class |
+| `rasters/<zone>_majority.tif` | raster ประเภทป่าในแปลง `0=DDF 1=DEF 2=MDF`, nodata `-999` |
+| `prediction/<zone>/model_version_2.2.2/pred_<year>_2_2_2-{class,proba}.tif` | ผลรายปี |
 
-# Create dataset
-dataset = builder.create_dataset(
-    zones=['mfl_cmf_2024', 'mfl_cmf_area_project_2025_chr_zone_1'],
-    years=[2020.0, 2021.0],
-    features=['vv', 'vh', 'ndvi', 'slope'],
-    target='ftype_mix'
-)
+## Config
 
-# Access the data
-vv_features = dataset['vv_feature']      # Shape: (N, 21)
-vh_features = dataset['vh_feature']      # Shape: (N, 21)
-ndvi_features = dataset['ndvi_feature']  # Shape: (N, 21)
-slope_features = dataset['slope_feature'] # Shape: (N, 1)
-targets = dataset['target']             # Shape: (N, 1)
+ทุก path อยู่ใน `config/config.yaml` (path แบบ relative นับจาก root ของ repo)
+
+| key | ค่า |
+|---|---|
+| `prediction.model_version` / `model_file` | `2.2.2` / `hybrid_lstm_cnn_model-*-no-leakage.keras` |
+| `prediction.datacube_dir` | `/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0` (mount แบบ read-only) |
+| `prediction.years` | 2019–2025 |
+| `aoi.path`, `aoi.id_fields`, `aoi.output_dir` | ไฟล์ AOI, คอลัมน์ที่จะใส่ใน output, โฟลเดอร์ output |
+
+ข้อมูลกลางทั้งหมดถูก mount แบบ **read-only** ใน container ผลทุกอย่างจะเขียนได้เฉพาะใน `outputs/` ของ repo
+
+## Model v2.2.2
+
+| | |
+|---|---|
+| ไฟล์ | `model/mfl_v2_2_2/` (มีใน git: โมเดล, scaling params, label encoder) |
+| Input | time series `(21 สัปดาห์, 10 channels)`: vv, vh, gvmi, ndvi, slavi, lai, fapar, fcover, VH/VV, VV/VH + static `(slope, elevation)` |
+| Output | probability 3 class → `0=DDF, 1=DEF, 2=MDF` |
+| Train zones | `mfl_cmf_2024`, `chr_zone_2` (กัน `chr_zone_1` ไว้ไม่ให้ใช้ train) |
+
+ลำดับ channel **ต้องตรงกับตอน train** ไม่อย่างนั้นผลจะเอียงไป class เดียว
+รายละเอียดโมเดลแต่ละเวอร์ชันอยู่ที่ [docs/models/](docs/models/README.md)
+
+## Validation
+
+```bash
+docker compose run --rm dev python scripts/compare_predictions.py <dir A> <dir B> [--b-version-sep .]
 ```
 
-## Available Data
+- โหมด AOI เทียบกับการ predict ทั้ง zone: ตรงกัน **100%** ทุกพิกเซลในแปลง (49 zone-ปี)
+- เทียบกับผลเดิมที่ `/fs2/ftype_mflf/result/2025/1.2.0` (v2.2.2): ตรงกัน **99.98–99.99%**
+  - ยกเว้น `zone_1` ปี 2023 เพราะ datacube SAR ถูกสร้างใหม่หลังจากรันผลเดิมไปแล้ว
 
-### Zones
-- `mfl_cmf_2024`: 1,556 points, years 2019-2024
-- `mfl_cmf_area_project_2025_chr_zone_1`: 312 points, years 2019-2025
-- `mfl_cmf_area_project_2025_chr_zone_2`: 145 points, years 2019-2025
+## Known issues
 
-### Features
+- **ช่องว่างใน datacube:** biophys ของ `zone_3` ปี 2025 หายไปในสัปดาห์ที่ 13–18 ตอนนี้พิกเซลพวกนี้ถูก mask เป็น nodata
+  (โค้ดเดิมทายเป็น DDF ทั้งหมด และผลใน `/fs2/ftype_mflf/result` ก็โดนแบบเดียวกัน) ถ้าต้องการให้ predict ได้ครบ ต้อง interpolate ก่อน
+- **DEF ออกมาน้อยมาก** (AOI ป่าชุมชน 53 แปลง: DEF 0.3%) ควรเทียบกับข้อมูลภาคสนามก่อนนำไปใช้
+- **AOI นอก 7 zone** ยังรันไม่ได้ ต้องสร้าง datacube ใหม่ก่อน (GEE export → biophys → datacube) ขั้นตอนนี้ยังเป็น notebook และสคริปต์ที่ฝังชื่อ zone ไว้
+- **ไฟล์ที่ root และใน `scripts/`** ส่วนใหญ่เป็นสคริปต์ตรวจข้อมูลแบบใช้ครั้งเดียวจาก repo ต้นทาง มี path ตายตัว และยังไม่ได้จัดระเบียบ
 
-**Temporal Features (21 timesteps):**
-- `fapar`: Fraction of Absorbed Photosynthetically Active Radiation
-- `fcover`: Fractional Cover
-- `gvmi`: Global Vegetation Moisture Index
-- `lai`: Leaf Area Index
-- `ndvi`: Normalized Difference Vegetation Index
-- `slavi`: Specific Leaf Area Vegetation Index
-- `vh`: VH polarization SAR
-- `vv`: VV polarization SAR
-
-**Static Features (1 timestep):**
-- `elevation`: Elevation above sea level
-- `slope`: Terrain slope
-
-### Target Variables
-- `ftype_mix`: Forest type including mixed classes
-- `ftype_nonmix`: Forest type excluding mixed classes
-
-Target classes include: BAMBOO, BANANA, DDF, DEF, MDF, MIX, NONE, S
-
-## Dataset Structure
-
-The resulting dataset follows this structure:
+## Repo structure
 
 ```
-For temporal features (e.g., vv, ndvi):
-- Shape: (total_samples, 21)
-- Where total_samples = sum of (zone_points × selected_years)
-
-For static features (e.g., slope, elevation):
-- Shape: (total_samples, 1)
-- Static values repeated for each year-point combination
-
-For targets:
-- Shape: (total_samples, 1)
-- Same target value used across all years for each point
+├── src/
+│   ├── run_aoi_prediction.py      ★ entry point: AOI → predict → summary
+│   ├── prediction_ftype_2_2_1.py  ★ โหลด datacube, mask, scaling, predict (v2.2.x)
+│   ├── dataset_builder.py           สร้าง dataset สำหรับ train
+│   └── ...                          prep/interpolation/alignment ของ datacube
+├── scripts/
+│   ├── docker_setup_env.sh        ★ สร้าง env
+│   ├── compare_predictions.py     ★ regression check
+│   └── train_model_v2_2_1.py        train
+├── config/config.yaml             ★ path และค่าตั้งค่าทั้งหมด
+├── model/mfl_v2_2_2/              ★ โมเดลที่ใช้
+├── docs/
+│   ├── AOI_PREDICTION.md          ★ หลักการทำงานโดยละเอียด
+│   ├── DATASET_BUILDER.md           คู่มือ dataset builder (README เดิม)
+│   ├── final_pipline/               ที่มาของข้อมูลและการสร้าง datacube
+│   └── models/                      รายละเอียดโมเดลแต่ละเวอร์ชัน
+├── Dockerfile, docker-compose.yml
+├── environment.yml                  แพ็กเกจ (conda-forge)
+├── data/aoi/                        ไฟล์ AOI (ไม่อยู่ใน git)
+└── outputs/                         ผลลัพธ์ (ไม่อยู่ใน git)
 ```
 
-## Example Calculations
-
-For the example: zones=['mfl_cmf_2024', 'mfl_cmf_area_project_2025_chr_zone_1'], years=[2020, 2021, 2025]
-
-**Expected samples:**
-- mfl_cmf_2024: 1,556 points × 2 years (2020, 2021) = 3,112 samples
-- mfl_cmf_area_project_2025_chr_zone_1: 312 points × 3 years (2020, 2021, 2025) = 936 samples
-- **Total: 4,048 samples**
-
-**Actual shapes:**
-```
-vv_feature: (4048, 21)     # Temporal feature
-fapar_feature: (4048, 21)  # Temporal feature
-slope_feature: (4048, 1)   # Static feature
-target: (4048, 1)          # Target values
-```
-
-## Advanced Usage
-
-### Get Dataset Summary
-```python
-summary = builder.get_dataset_summary()
-print(f"Available zones: {summary['zones']}")
-print(f"Available years: {summary['years']}")
-print(f"Zone-year combinations: {summary['zone_year_combinations']}")
-```
-
-### Include Point Information
-```python
-dataset = builder.create_dataset(
-    zones=['mfl_cmf_2024'],
-    years=[2020.0],
-    features=['vv', 'slope'],
-    target='ftype_mix',
-    return_point_info=True  # Include point metadata
-)
-
-# Access point information
-point_info = dataset['point_info']
-# Each entry contains: {'point_id', 'zone', 'year', 'utm_x', 'utm_y'}
-```
-
-### Save and Load Datasets
-```python
-import numpy as np
-
-# Save dataset
-np.savez_compressed('my_dataset.npz', **dataset)
-
-# Load dataset
-loaded = np.load('my_dataset.npz', allow_pickle=True)
-vv_features = loaded['vv_feature']
-targets = loaded['target']
-```
-
-## Data Validation
-
-The builder automatically validates:
-- Zone names exist in the dataset
-- Years are available for specified zones
-- Feature names are valid
-- Target variable names are correct
-- Data shapes are consistent across features and targets
-
-Warnings are issued for:
-- Zone-year combinations without data
-- Missing temporal data (< 21 timesteps)
-- Missing static data
-
-## Best Practices
-
-1. **Check Available Data**: Use `get_dataset_summary()` to understand what data is available before creating datasets.
-
-2. **Handle Missing Years**: Some zones don't have data for all years. The builder will warn you and skip missing combinations.
-
-3. **Feature Selection**: Mix temporal and static features based on your model requirements.
-
-4. **Target Selection**: Choose between `ftype_mix` (includes mixed classes) and `ftype_nonmix` (pure classes only).
-
-5. **Reproducibility**: Save your datasets with meaningful names and document the exact parameters used.
-
-## Error Handling
-
-Common errors and solutions:
-
-**ValueError: Invalid zones/years/features**
-- Check available options using `get_dataset_summary()`
-
-**Shape mismatch errors**
-- Usually indicates data inconsistency; check warnings for missing data
-
-**No data found errors**
-- Verify zone-year combinations exist in the dataset
-
-## Performance Notes
-
-- Loading the full dataset takes ~10-30 seconds depending on system
-- Feature extraction is optimized but can take time for large combinations
-- Consider saving frequently used datasets to avoid reprocessing
-
-## Pipeline Components
-
-### Core Scripts
-- `datacube_zone_verification.py`: Comprehensive datacube verification
-- `dataset_builder.py`: Training dataset creation from verified datacubes
-- `src/prediction_ftype_2_2_0.py`: Forest type prediction model (v2.2.0)
-- `src/raster_clip_align.py`: Spatial alignment and clipping
-- `src/batch_interpolate.py`: Time series gap filling and interpolation
-
-### Verification Tools
-- `run_single_zone_verification.sh`: Individual zone testing
-- `run_zone_verification_parallel.sh`: Parallel processing for all zones
-- `verify_all_zones_sequential.sh`: Sequential processing (resource-friendly)
-
-### Configuration
-- `config/`: YAML configuration files for different processing stages
-
-### Documentation
-- `docs/final_pipline/`: Complete pipeline documentation
-- `FINAL_VERIFICATION_SUMMARY.md`: Datacube v1.2.0 verification results
-- `README.md`: This documentation
-
-## File Structure
-
-```
-├── datacube_zone_verification.py    # Main verification script
-├── dataset_builder.py               # Dataset creation from verified data
-├── dataset_examples.py              # Usage examples
-├── run_single_zone_verification.sh  # Single zone verification
-├── run_zone_verification_parallel.sh # Parallel verification
-├── verify_all_zones_sequential.sh   # Sequential verification
-├── src/                             # Core processing scripts
-├── config/                          # Configuration files
-├── docs/final_pipline/              # Pipeline documentation
-└── README.md                        # This documentation
-```
-
-## Dependencies
-
-- pandas
-- numpy
-- pathlib
-- warnings
-- typing
-
-All dependencies are available in the `gisworkspace-cupy` conda environment.
+★ = ส่วนที่ใช้ในการ predict ตาม AOI

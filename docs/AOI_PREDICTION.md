@@ -201,7 +201,7 @@ CSV ใช้ encoding `utf-8-sig` เพื่อให้เปิดภาษ
 
 ## 8. สิ่งที่เปลี่ยนจาก repo ต้นทาง (`/fs2/thanakit/ftype_model_development`)
 
-- ลบ git remote `origin` ออก ทำให้ push ไป repo เดิมไม่ได้
+- เริ่ม git history ใหม่ (repo: `github.com/wanwisa-j/ftype_model`) ไม่ผูกกับ repo ต้นทาง
 - `src/prediction_ftype_2_2_1.py`: path โมเดล, datacube, output, ปี และ batch size อ่านจาก config, import `dataset_builder` จาก `src/` ของ repo นี้ (เดิมใช้ `/fs1/tor_project/...`)
 - `environment.yml`: แก้ `cftime=1.6.4.post1` เป็น `1.6.4` และเอา channel `defaults` ออก
 - เพิ่ม: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/docker_setup_env.sh`, `src/run_aoi_prediction.py`, section `prediction`/`aoi` ใน config

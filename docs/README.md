@@ -1,5 +1,9 @@
 # Forest Type Classification Data Pipeline Documentation
 
+> **เริ่มที่นี่:** [AOI_PREDICTION.md](AOI_PREDICTION.md) อธิบายการ predict ตาม AOI ด้วย Docker (flow ที่ใช้งานจริงตอนนี้)
+> ส่วน [DATASET_BUILDER.md](DATASET_BUILDER.md) เป็นคู่มือสร้าง dataset สำหรับ train
+> เอกสารด้านล่างมาจาก repo ต้นทาง บางส่วนอาจล้าสมัยแล้ว เช่น ปัญหา nodata ของ zone 1 และ 2 ไม่พบใน datacube 1.2.0 ปัจจุบัน
+
 This documentation package provides comprehensive guides for the forest type classification data pipeline, covering all stages from raw data acquisition to model prediction.
 
 ## 🔍 Recent Critical Findings
