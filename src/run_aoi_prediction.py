@@ -23,10 +23,13 @@ Usage:
 """
 import argparse
 import glob
+import json
 import math
 import os
 import subprocess
 import sys
+import time
+from datetime import datetime
 
 import geopandas as gpd
 import joblib
@@ -144,6 +147,24 @@ def run_prediction_aoi(aoi, zones, cfg, pred_dir, force):
                                 window=win, extra_mask=outside, batch_size=cfg.get('batch_size', 128))
 
 
+def git_commit():
+    """Short HEAD commit read from .git directly (git is not installed in the container)."""
+    try:
+        git = os.path.join(REPO_ROOT, '.git')
+        head = open(os.path.join(git, 'HEAD')).read().strip()
+        if not head.startswith('ref: '):
+            return head[:7]
+        ref = head[5:]
+        if os.path.exists(os.path.join(git, ref)):
+            return open(os.path.join(git, ref)).read().strip()[:7]
+        for line in open(os.path.join(git, 'packed-refs')):
+            if line.rstrip().endswith(ref):
+                return line[:7]
+    except OSError:
+        pass
+    return None
+
+
 def majority(stack):
     """Per-pixel mode over axis 0 ignoring NODATA; ties -> smallest class (as scipy.stats.mode)."""
     n_cls = int(stack[stack != NODATA].max()) + 1 if (stack != NODATA).any() else 1
@@ -228,13 +249,16 @@ if __name__ == '__main__':
     ap.add_argument('--aoi', default=cfg_aoi['path'], help='AOI vector file (default from config)')
     ap.add_argument('--force', action='store_true', help='Rerun prediction even if outputs exist')
     ap.add_argument('--skip-predict', action='store_true', help='Only summarise existing predictions')
+    ap.add_argument('--output-dir', default=None,
+                    help='Parent folder for AOI outputs (default: aoi.output_dir in config)')
     ap.add_argument('--full-zone', action='store_true',
                     help='Predict whole zones into prediction.output_dir (slow) instead of AOI pixels only')
     args = ap.parse_args()
 
     aoi_path = repo_path(args.aoi)
     stem = os.path.splitext(os.path.basename(aoi_path))[0]
-    aoi_out = os.path.join(repo_path(cfg_aoi['output_dir']), stem)
+    t0, started = time.time(), datetime.now()
+    aoi_out = os.path.join(repo_path(args.output_dir or cfg_aoi['output_dir']), stem)
     pred_dir = repo_path(cfg['output_dir']) if args.full_zone else os.path.join(aoi_out, 'prediction')
     os.makedirs(aoi_out, exist_ok=True)
 
@@ -249,12 +273,14 @@ if __name__ == '__main__':
         print(f'WARNING: {outside.sum()} polygons are outside every datacube zone and will be skipped')
     zones = sorted(aoi.loc[~outside, 'zone'].unique())
 
+    t_pred = time.time()
     if not args.skip_predict:
         if args.full_zone:
             run_prediction_full_zone(zones, cfg, pred_dir, args.force)
         else:
             run_prediction_aoi(aoi[~outside], zones, cfg, pred_dir, args.force)
 
+    t_sum = time.time()
     classes = class_names(cfg)
     long_df, maj_df = summarise(aoi[~outside], cfg, cfg_aoi, pred_dir, aoi_out, classes)
     long_df.to_csv(os.path.join(aoi_out, 'summary_long.csv'), index=False, encoding='utf-8-sig')
@@ -263,6 +289,20 @@ if __name__ == '__main__':
     gdf = aoi.join(maj_df.set_index('aoi_idx').drop(columns=[c for c in maj_df.columns if c in aoi.columns]))
     gdf.to_file(os.path.join(aoi_out, f'{stem}_ftype.geojson'), driver='GeoJSON')
 
+    commit = git_commit()
+    run_info = {
+        'aoi': aoi_path, 'polygons': int(len(aoi)), 'zones': zones,
+        'mode': 'skip-predict' if args.skip_predict else ('full-zone' if args.full_zone else 'aoi'),
+        'prediction_dir': pred_dir, 'model_version': cfg['model_version'], 'years': cfg['years'],
+        'git_commit': commit, 'started': started.isoformat(timespec='seconds'),
+        'finished': datetime.now().isoformat(timespec='seconds'),
+        'seconds': {'setup': round(t_pred - t0, 1), 'predict': round(t_sum - t_pred, 1),
+                    'summarise': round(time.time() - t_sum, 1), 'total': round(time.time() - t0, 1)},
+    }
+    with open(os.path.join(aoi_out, 'run_info.json'), 'w') as f:
+        json.dump(run_info, f, indent=2)
+
     print(f'\nClasses: {classes}')
     print(maj_df['dominant_class'].value_counts(dropna=False).to_string())
-    print(f'\nOutputs written to {aoi_out}')
+    print(f"\nTime: predict {run_info['seconds']['predict']:.0f}s, total {run_info['seconds']['total']:.0f}s")
+    print(f'Outputs written to {aoi_out}')
