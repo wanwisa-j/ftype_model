@@ -1,0 +1,38 @@
+# Forest Type Classification Dataset Extraction Configuration - Missing Data Only
+# This config extracts only the missing VV/VH data for 2020 from zones 1 and 2
+
+# Output directory for the dataset
+dataset_output_dir: "/fs2/ftype_mflf/shared_data/dataset/1.2.0"
+
+# Path to ground truth label data
+label_data_path: "/fs1/tor_project/model_foresttype/data/2025_data_label_20250726/groud_label_data_ftype_for_model_20250826/ftype_total_2024_2025_train_model_20250826.csv"
+
+# Boundary files for missing data zones only
+bbox_areas:
+  mfl_cmf_area_project_2025_chr_zone_1: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_1-fit_areas.parquet"
+  mfl_cmf_area_project_2025_chr_zone_2: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_2-fit_areas.parquet"
+
+# Datacube directories for missing data zones only
+datacube_dirs:
+  mfl_cmf_area_project_2025_chr_zone_1: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_1"
+  mfl_cmf_area_project_2025_chr_zone_2: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_2"
+
+# Selection configuration - only missing data
+selection:
+  # Only zones with missing data
+  zones:
+    - "mfl_cmf_area_project_2025_chr_zone_1" 
+    - "mfl_cmf_area_project_2025_chr_zone_2"
+  
+  # VV and VH features for 2023 (the remaining missing data)
+  features:
+    vh: [2023]
+    vv: [2023]
+  
+  # Target variables to include in the dataset
+  targets:
+    - "ftype_mix"
+    - "ftype_nonmix"
+  
+  # Whether to preserve raw values (True) or apply scaling/normalization (False)
+  preserve_raw_values: True

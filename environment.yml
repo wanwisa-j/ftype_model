@@ -1,0 +1,111 @@
+# =============================================================================
+# environment.yml — Full reproducible conda environment
+# Repository: ftype_model_development
+#
+# This is the RECOMMENDED setup for a fresh machine.
+# conda handles GDAL/PROJ/GEOS binary linking that pip cannot.
+#
+# Create:
+#   conda env create -f environment.yml
+#
+# Activate:
+#   conda activate ftype-dev
+#
+# Update an existing env:
+#   conda env update -f environment.yml --prune
+#
+# GPU NOTE: tensorflow pulls CUDA 12.5 + cuDNN 9.3 wheels from PyPI automatically
+#           when a compatible NVIDIA driver (≥525.105) is present.
+#           No explicit cuda/cudnn conda packages are required.
+# =============================================================================
+
+name: ftype-dev
+
+channels:
+  - conda-forge      # geospatial binaries (GDAL, PROJ, GEOS, rasterio, …)
+
+dependencies:
+  # ── Python ────────────────────────────────────────────────────────────────
+  - python=3.12
+
+  # ── System-level geospatial libraries ────────────────────────────────────
+  # conda-forge builds these with correct binary linkage so that rasterio,
+  # fiona, pyproj, shapely, and geopandas all use the same PROJ/GEOS/GDAL.
+  - gdal>=3.8            # also provides osgeo.gdal Python bindings
+  - proj>=9.3
+  - geos>=3.12
+  - libspatialindex      # required by rtree (geopandas spatial indexing)
+  - rtree
+
+  # ── Geospatial — Python ───────────────────────────────────────────────────
+  - rasterio=1.4.3
+  - rioxarray=0.18.2
+  - xarray=2025.1.2
+  - geopandas=1.0.1
+  - fiona=1.10.1
+  - shapely=2.0.7
+  - pyproj=3.7.1
+  - pyogrio=0.10.0
+  - affine=2.4.0
+  - rasterstats=0.20.0
+  - netcdf4=1.7.2
+  - cftime=1.6.4
+
+  # ── Numerical / Tabular ───────────────────────────────────────────────────
+  - numpy=2.4.4
+  - pandas=2.2.3
+  - pyarrow=19.0.1
+  - scipy=1.15.2
+
+  # ── Parallel / Chunked Processing ─────────────────────────────────────────
+  - dask=2026.3.0
+  - distributed=2026.3.0
+
+  # ── Classical ML ──────────────────────────────────────────────────────────
+  - scikit-learn=1.6.1
+  - imbalanced-learn=0.13.0
+  - joblib=1.4.2
+
+  # ── Visualization ─────────────────────────────────────────────────────────
+  - matplotlib=3.10.0
+  - seaborn=0.13.2
+  - plotly=6.7.0
+  - contextily=1.7.0
+  - folium=0.20.0
+
+  # ── Configuration / I/O ───────────────────────────────────────────────────
+  - pyyaml=6.0.2
+  - h5py=3.14.0
+  - tqdm>=4.66
+
+  # ── Jupyter ───────────────────────────────────────────────────────────────
+  - jupyter=1.1.1
+  - jupyterlab=4.3.5
+  - notebook=7.3.2
+  - ipython=8.32.0
+  - ipykernel=6.29.5
+  - ipywidgets=8.1.5
+  - ipyleaflet=0.20.0
+  - nbformat=5.10.4
+  - nbconvert=7.16.6
+
+  # ── pip-only packages ─────────────────────────────────────────────────────
+  - pip
+  - pip:
+    # TensorFlow + Keras (GPU-capable; CUDA wheels auto-installed by pip on
+    # hosts with a supported NVIDIA driver)
+    - tensorflow==2.21.0
+    - keras==3.14.0
+
+    # Google Earth Engine stack (notebooks only)
+    - earthengine-api==1.7.22
+    - geemap==0.37.2
+    - geetools==1.18.1
+    - xee==0.0.24
+
+    # Additional visualization
+    - bokeh==3.9.0
+    - descartes==1.1.0
+
+    # Misc utilities not available on conda-forge at required version
+    - pyarrow==19.0.1

@@ -1,0 +1,32 @@
+# Quick Test Configuration for Parallel Processing
+# Tests only VH/VV features for 2020 and 2023 in zones 1 and 2 (cleaned data)
+
+dataset_output_dir: '/fs2/ftype_mflf/shared_data/dataset/1.2.0'
+
+label_data_path: '/fs1/tor_project/model_foresttype/data/2025_data_label_20250726/groud_label_data_ftype_for_model_20250826/ftype_total_2024_2025_train_model_20250826.csv'
+
+bbox_areas:
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_1-fit_areas.parquet'
+  mfl_cmf_area_project_2025_chr_zone_2: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_2-fit_areas.parquet'
+
+datacube_dirs:
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_1'
+  mfl_cmf_area_project_2025_chr_zone_2: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_2'
+
+selection:
+  zones: ['mfl_cmf_area_project_2025_chr_zone_1', 'mfl_cmf_area_project_2025_chr_zone_2']
+  features:
+    # Only test VH/VV for years where we cleaned the redundant data
+    vh:
+      default: [2020, 2023]
+    vv:
+      default: [2020, 2023]
+  targets: ['ftype_mix', 'ftype_nonmix']
+  preserve_raw_values: true
+
+# Parallel processing configuration
+parallel_processing:
+  enabled: true
+  n_workers: 4  # Use 4 workers for quick test
+  chunk_size: 1
+  use_processes: true

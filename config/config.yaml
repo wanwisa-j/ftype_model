@@ -1,0 +1,24 @@
+# --- v1.0.0 (src/prediction_ftype.py) -----------------------------------------
+model:
+  path: "/fs1/tor_project/model_foresttype/model/"
+  model_version: "1.0.0"
+  model_file: "lstm-fcn_dataset2_phase_1-2_20240508_3.h5"
+
+retroactive_years: 5
+cal_majority: True
+
+# --- v2.2.x (src/prediction_ftype_2_2_1.py, src/run_aoi_prediction.py) --------
+# Relative paths are resolved from the repo root.
+prediction:
+  model_version: "2.2.2"
+  model_root: "model"                      # -> model/mfl_v2_2_2/{*.keras, config/}
+  datacube_dir: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0"   # shared, read-only
+  output_dir: "outputs/prediction/1.2.0"   # -> <zone>/model_version_<v>/pred_<year>_*.tif
+  years: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+  batch_size: 128
+
+# AOI to summarise. Drop the file in data/aoi/ and point `path` at it.
+aoi:
+  path: "data/aoi/ftype_lu_addarea_dissolved_cmf_moo.geojson"
+  id_fields: ["CMF_Name", "Moo", "Tambon", "Amphoe", "Province"]
+  output_dir: "outputs/aoi"                # -> <aoi file stem>/...

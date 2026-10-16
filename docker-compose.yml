@@ -1,0 +1,44 @@
+# Dev container for ftype_model_development.
+#
+#   docker compose build
+#   docker compose run --rm dev python src/prediction_ftype_2_2_1.py ...
+#   docker compose up -d jupyter      # JupyterLab on http://localhost:8899
+#
+# Shared data is mounted READ-ONLY so nothing here can modify other people's
+# data. Write all results under ./outputs (inside this repo).
+
+x-common: &common
+  image: ftype-dev:wanwisa
+  build: .
+  user: "1025:2001"          # wanwisaj:gda — files created on /fs2 stay ours
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+    - /fs2/ftype_mflf/shared_data:/fs2/ftype_mflf/shared_data:ro
+    - /fs2/ftype_mflf/result:/fs2/ftype_mflf/result:ro
+    - /fs1/tor_project/model_foresttype:/fs1/tor_project/model_foresttype:ro
+    - /fs3/datacenter/ftype_mflf:/fs3/datacenter/ftype_mflf:ro
+  shm_size: "8gb"
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+  dev:
+    <<: *common
+    container_name: ftype-dev-wanwisa
+    stdin_open: true
+    tty: true
+
+  jupyter:
+    <<: *common
+    container_name: ftype-jupyter-wanwisa
+    ports:
+      - "127.0.0.1:8899:8888"
+    command: >
+      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+      --ServerApp.root_dir=/workspace

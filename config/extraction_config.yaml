@@ -1,0 +1,108 @@
+# Forest Type Classification Dataset Extraction Configuration
+# This file defines the parameters for extracting satellite time-series features
+# and ground truth labels for forest type classification.
+
+# Output directory for the dataset
+dataset_output_dir: "/fs2/ftype_mflf/shared_data/dataset/1.2.0"
+
+# Path to ground truth label data
+label_data_path: "/fs1/tor_project/model_foresttype/data/2025_data_label_20250726/groud_label_data_ftype_for_model_20250826/ftype_total_2024_2025_train_model_20250826.csv"
+
+# Boundary files for each zone
+bbox_areas:
+  mfl_cmf_2024: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_2024.parquet"
+  mfl_cmf_area_project_2025_chr_zone_1: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_1-fit_areas.parquet"
+  mfl_cmf_area_project_2025_chr_zone_2: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_2-fit_areas.parquet"
+  zone_1: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_1.parquet"
+  zone_2: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_2.parquet"
+  zone_3: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_3.parquet"
+  zone_4: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_4.parquet"
+  zone_5: "/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_5.parquet"
+
+# Datacube directories for each zone
+datacube_dirs:
+  mfl_cmf_2024: "/fs2/ftype_mflf/shared_data/datacube/2024/1.2.0/mfl_cmf_2024"
+  mfl_cmf_area_project_2025_chr_zone_1: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_1"
+  mfl_cmf_area_project_2025_chr_zone_2: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_2"
+  zone_1: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_1"
+  zone_2: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_2"
+  zone_3: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_3"
+  zone_4: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_4"
+  zone_5: "/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_5"
+
+# Selection configuration
+selection:
+  # Zones to include in the dataset (must be subset of zones defined above)
+  zones:
+    - "mfl_cmf_2024"
+    - "mfl_cmf_area_project_2025_chr_zone_1" 
+    - "mfl_cmf_area_project_2025_chr_zone_2"
+  
+  # Features to extract with years for time-series or True for static features
+  # Zone-specific year ranges: mfl_cmf_2024 has 2019-2024, others have 2019-2025
+  features:
+    # Time-series features - zone-specific year ranges
+    lai:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    fapar:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    fcover:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    ndvi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    gvmi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    slavi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    vh:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    vv:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    
+    # Static features - set to True to include
+    elevation: True
+    slope: True
+  
+  # Target variables to include in the dataset
+  targets:
+    - "ftype_mix"
+    - "ftype_nonmix"
+  
+  # Whether to preserve raw values (True) or apply scaling/normalization (False)
+  preserve_raw_values: True
+
+# Example alternative configurations (commented out):
+
+# For a smaller test dataset:
+# selection:
+#   zones: ["mfl_cmf_2024"]
+#   features:
+#     ndvi: [2022, 2023]
+#     elevation: True
+#   targets: ["ftype_mix"]
+#   preserve_raw_values: True
+
+# For all available years:
+# selection:
+#   zones: ["mfl_cmf_2024", "mfl_cmf_area_project_2025_chr_zone_1", "mfl_cmf_area_project_2025_chr_zone_2"]
+#   features:
+#     lai: [2019, 2020, 2021, 2022, 2023, 2024]
+#     fapar: [2019, 2020, 2021, 2022, 2023, 2024]
+#     fcover: [2019, 2020, 2021, 2022, 2023, 2024]
+#     ndvi: [2019, 2020, 2021, 2022, 2023, 2024]
+#     gvmi: [2019, 2020, 2021, 2022, 2023, 2024]
+#     slavi: [2019, 2020, 2021, 2022, 2023, 2024]
+#     vh: [2019, 2020, 2021, 2022, 2023, 2024]
+#     vv: [2019, 2020, 2021, 2022, 2023, 2024]
+#     elevation: True
+#     slope: True
+#   targets: ["ftype_mix", "ftype_nonmix"]
+#   preserve_raw_values: True

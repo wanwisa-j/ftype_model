@@ -1,0 +1,59 @@
+# Comprehensive Single Machine Configuration
+# Extracts ALL zones and ALL available indices
+# Complete dataset extraction on one machine
+
+dataset:
+  name: "forest_type_dataset_comprehensive_complete"
+  version: "1.2.0"
+  
+paths:
+  datacube_base: "/fs2/ftype_mflf/shared_data/datacube"
+  labels_base: "/fs1/tor_project/model_foresttype/data"
+  boundaries_base: "/fs3/datacenter/ftype_mflf/shared_data/boundary"
+  output_base: "/fs2/ftype_mflf/shared_data/dataset/1.2.0"
+
+selection:
+  zones: [
+    'mfl_cmf_2024', 
+    'mfl_cmf_area_project_2025_chr_zone_1', 
+    'mfl_cmf_area_project_2025_chr_zone_2',
+    'zone_1', 
+    'zone_2', 
+    'zone_3', 
+    'zone_4', 
+    'zone_5'
+  ]
+  features:
+    # Biophysical time series (all years)
+    lai: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    fapar: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    fcover: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    # Vegetation indices time series (all years)
+    ndvi: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    gvmi: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    slavi: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    # SAR time series (all years)
+    vv: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    vh: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    # Static features
+    elevation: true
+    slope: true
+  target_columns: ['ftype_mix', 'ftype_nonmix']
+  years:
+    default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+    mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]  # Limited to 2024
+
+processing:
+  chunk_size: 1000  # Smaller chunks for comprehensive extraction
+  n_workers: 6      # More workers for single machine
+  memory_limit: "24GB"
+  
+output:
+  raw_format: "parquet"
+  wide_format: "parquet"
+  save_intermediate: true
+  machine_id: "comprehensive_single"
+
+logging:
+  level: "INFO"
+  file: "/fs1/tor_project/model_foresttype/logs/extraction_comprehensive_{timestamp}.log"

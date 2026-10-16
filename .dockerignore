@@ -1,0 +1,13 @@
+.git
+tf/
+notebook/
+model/
+data/
+outputs/
+plots/
+verification_results/
+test_dataset/
+**/__pycache__
+*.ipynb
+.venv-docker/
+.cache/

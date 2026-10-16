@@ -1,0 +1,28 @@
+dataset_output_dir: '/fs1/tor_project/model_foresttype/test_dataset'
+label_data_path: '/fs1/tor_project/model_foresttype/data/2025_data_label_20250726/groud_label_data_ftype_for_model_20250826/ftype_total_2024_2025_train_model_20250826.csv'
+bbox_areas:
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_1-fit_areas.parquet'
+datacube_dirs:
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_1'
+selection:
+  zones: ['mfl_cmf_area_project_2025_chr_zone_1']
+  features:
+    # Time-series features for 2025 only
+    lai: [2025]
+    fapar: [2025]
+    fcover: [2025]
+    ndvi: [2025]
+    gvmi: [2025]
+    slavi: [2025]
+    vh: [2025]
+    vv: [2025]
+    # Static features
+    elevation: True
+    slope: True
+  targets: ['ftype_mix', 'ftype_nonmix']
+  preserve_raw_values: True
+parallel_processing:
+  enabled: True
+  n_workers: null
+  chunk_size: 1
+  use_processes: True

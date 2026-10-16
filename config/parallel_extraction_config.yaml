@@ -1,0 +1,60 @@
+# Parallel Processing Configuration for Forest Type Dataset Extraction
+# Optimized for cleaned VH/VV data (2020, 2023 in zones 1 and 2)
+
+dataset_output_dir: '/fs2/ftype_mflf/shared_data/dataset/1.2.0'
+
+label_data_path: '/fs1/tor_project/model_foresttype/data/2025_data_label_20250726/groud_label_data_ftype_for_model_20250826/ftype_total_2024_2025_train_model_20250826.csv'
+
+bbox_areas:
+  mfl_cmf_2024: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_2024.parquet'
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_1-fit_areas.parquet'
+  mfl_cmf_area_project_2025_chr_zone_2: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_area_project_2025_chr_zone_2-fit_areas.parquet'
+  zone_1: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_1.parquet'
+  zone_2: '/fs3/datacenter/ftype_mflf/shared_data/boundary/mfl_cmf_project_2025_phase2/split/zone_2.parquet'
+
+datacube_dirs:
+  mfl_cmf_2024: '/fs2/ftype_mflf/shared_data/datacube/2024/1.2.0/mfl_cmf_2024'
+  mfl_cmf_area_project_2025_chr_zone_1: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_1'
+  mfl_cmf_area_project_2025_chr_zone_2: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/mfl_cmf_area_project_2025_chr_zone_2'
+  zone_1: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_1'
+  zone_2: '/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0/zone_2'
+
+selection:
+  zones: ['mfl_cmf_2024', 'mfl_cmf_area_project_2025_chr_zone_1', 'mfl_cmf_area_project_2025_chr_zone_2']
+  features:
+    # Time-series features with zone-specific year ranges
+    lai:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    fapar:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    fcover:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    ndvi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    gvmi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    slavi:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    vh:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    vv:
+      default: [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+      mfl_cmf_2024: [2019, 2020, 2021, 2022, 2023, 2024]
+    elevation: true
+    slope: true
+  targets: ['ftype_mix', 'ftype_nonmix']
+  preserve_raw_values: true
+
+# Parallel processing configuration
+parallel_processing:
+  enabled: true
+  n_workers: 16  # Use 8 parallel workers
+  chunk_size: 1
+  use_processes: true  # Use process-based parallelization for CPU-intensive tasks

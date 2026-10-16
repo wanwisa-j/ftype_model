@@ -1,0 +1,54 @@
+# =============================================================================
+# requirements-dev.txt — Development, notebooks, and GEE exploration
+# Repository: ftype_model_development
+#
+# Install in addition to requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# These packages are NOT needed for production inference or model training.
+# They are needed to run notebooks in notebook/ and scripts/sync_gdrive.sh.
+# =============================================================================
+
+# ── Jupyter Environment ───────────────────────────────────────────────────────
+jupyter==1.1.1
+jupyterlab==4.3.5
+notebook==7.3.2
+ipython==8.32.0
+ipykernel==6.29.5
+ipywidgets==8.1.5
+nbformat==5.10.4
+nbconvert==7.16.6
+
+# ipyleaflet + ipyevents: interactive map widgets used in GEE notebooks.
+ipyleaflet==0.20.0
+
+# ── Google Earth Engine ───────────────────────────────────────────────────────
+# ee / geemap / geetools / xee used in notebook/GEE_prep_data_v1.2.0/ notebooks
+# for downloading biophysical variable datacubes from GEE.
+earthengine-api==1.7.22
+geemap==0.37.2
+geetools==1.18.1
+xee==0.0.24             # xarray GEE extension (xee.EarthEngineStore)
+
+# ── Extended Visualization ────────────────────────────────────────────────────
+plotly==6.7.0
+bokeh==3.9.0
+folium==0.20.0          # interactive HTML maps in GEE notebooks
+contextily==1.7.0       # web tile basemaps for geopandas plots
+descartes==1.1.0        # matplotlib polygon patch rendering for shapely
+
+# ── Uncertain / Legacy ────────────────────────────────────────────────────────
+# ngboost: imported ONLY in notebook/foresttype_rf_zonal_data.ipynb (Mar 2024).
+# That notebook is exploratory; ngboost is not used in any production script.
+# Uncomment only if you need to reproduce that old notebook.
+# ngboost
+
+# sktime: installed in tf/ venv but NO import found in any .py or active
+# notebook. Likely a leftover. Uncomment if time-series models are reintroduced.
+# sktime==0.37.0
+
+# osgeo / GDAL Python bindings: imported in notebook/data_exploring.ipynb only.
+# Install via conda (conda-forge) or system package — NOT via pip — to avoid
+# binary mismatch with the system GDAL:
+#   conda install -c conda-forge gdal
+#   # or: apt-get install python3-gdal

@@ -1,0 +1,28 @@
+# Environments / caches
+tf/
+.venv-docker/
+.cache/
+__pycache__/
+*.pyc
+
+# Data and results (live on /fs2, not in git)
+data/
+outputs/
+logs/
+plots/
+reports/
+verification_results/
+quick_datacube_check_output/
+test_dataset/
+
+# Notebooks
+notebook/
+*.ipynb
+
+# Models: only the version in use is tracked
+model/*
+!model/mfl_v2_2_2/
+
+# Personal editor / tool settings
+.claude/settings.local.json
+.vscode/

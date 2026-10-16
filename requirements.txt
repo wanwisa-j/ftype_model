@@ -1,0 +1,105 @@
+# =============================================================================
+# requirements.txt — Production runtime dependencies
+# Repository: ftype_model_development
+# Python: 3.12.x  (tested on 3.12.3 inside tf/ venv)
+#
+# Versions are pinned to what is confirmed working in the tf/ venv.
+# Install with:
+#   pip install -r requirements.txt
+#
+# NOTE: TensorFlow pulls in CUDA 12.5 + cuDNN 9.3 wheels automatically via pip
+#       on GPU hosts. No manual nvidia-* entries are needed here.
+# NOTE: GDAL/PROJ/GEOS system libraries must be installed before pip-installing
+#       rasterio, fiona, pyproj, shapely (see environment.yml or apt block below).
+# =============================================================================
+
+# ── Deep Learning ─────────────────────────────────────────────────────────────
+# LSTM-FCN training (scripts/train_model_v2_2_1.py) and
+# tile-based inference (src/prediction_ftype_2_2_*.py, src/prediction_ftype.py).
+tensorflow==2.21.0
+# keras 3.x ships inside TF 2.21 but an explicit pin lets pip resolve correctly.
+keras==3.14.0
+
+# ── Classical ML ──────────────────────────────────────────────────────────────
+# StandardScaler / LabelEncoder / RobustScaler / SimpleImputer used in
+# src/data_preprocessor.py; RandomForestClassifier, StratifiedKFold, metrics
+# across scripts/ and notebooks.
+scikit-learn==1.6.1
+
+# scipy.stats.mode (majority-vote aggregation in prediction scripts) and
+# scipy.interpolate (src/raster_interpolation_efficient.py).
+scipy==1.15.2
+
+# imblearn.under_sampling.RandomUnderSampler — used in training notebooks;
+# active (non-commented) call found in scripts/train_model_v2_2_1.py context.
+imbalanced-learn==0.13.0
+
+# joblib.dump / joblib.load for serialising sklearn scalers/encoders alongside
+# the Keras model (scripts/train_model_v2_2_1.py).
+joblib==1.4.2
+
+# ── Numerical / Tabular ───────────────────────────────────────────────────────
+numpy==2.4.4
+pandas==2.2.3
+
+# pyarrow: Parquet I/O backend for pandas DataFrames in the dataset pipeline.
+pyarrow==19.0.1
+
+# ── Geospatial — Raster ───────────────────────────────────────────────────────
+# Core raster read/write/warp/mask used throughout src/ and scripts/.
+rasterio==1.4.3
+
+# rioxarray + xarray for lazy, chunk-based raster datacube access used in
+# src/prediction_ftype.py, src/weekly_biophys_aggregation.py, and prep scripts.
+rioxarray==0.18.2
+xarray==2025.1.2
+
+# rasterstats: zonal statistics over vector/raster pairs (feature extraction).
+rasterstats==0.20.0
+
+# netCDF4 / cftime: xarray backends for .nc datacubes referenced in config.
+netCDF4==1.7.2
+cftime==1.6.4.post1
+
+# dask + distributed: parallel chunked xarray processing (datacube I/O).
+dask==2026.3.0
+distributed==2026.3.0
+
+# ── Geospatial — Vector ───────────────────────────────────────────────────────
+# geopandas + pyogrio: vector I/O for zone shapefiles and forest-type labels.
+geopandas==1.0.1
+pyogrio==0.10.0
+
+# fiona: underlying vector backend (also required by rasterstats).
+fiona==1.10.1
+
+# shapely.ops.transform: CRS reprojection of vector geometries in
+# src/prep_biophy-data-prediciton_2_1_1.py.
+shapely==2.0.7
+
+# pyproj: CRS object construction (Transformer) in prep and alignment scripts.
+pyproj==3.7.1
+
+# affine: raster transform arithmetic (dependency of rasterio, used directly
+# in src/raster_clip_align.py for window offsets).
+affine==2.4.0
+
+# ── Visualization ─────────────────────────────────────────────────────────────
+# matplotlib used in training curves, confusion matrices, and QA plots across
+# scripts/final_dataset_validation.py and datacube_zone_verification.py.
+matplotlib==3.10.0
+
+# seaborn: styled confusion matrix and class-distribution plots.
+seaborn==0.13.2
+
+# ── Configuration / I/O ───────────────────────────────────────────────────────
+# yaml.safe_load for config/config.yaml in prediction and extraction scripts.
+PyYAML==6.0.2
+
+# h5py: .h5 model file read/write (also pulled in by TF, pinned for clarity).
+h5py==3.14.0
+
+# tqdm: progress bars in src/feature_extractor.py and
+# scripts/extract_forest_type_dataset.py.
+# WARNING: tqdm was ABSENT from the tf/ venv at audit time — add it explicitly.
+tqdm>=4.66,<5
