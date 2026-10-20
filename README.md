@@ -28,6 +28,8 @@ docker compose run --rm dev python src/run_aoi_prediction.py   # รัน AOI �
 
 ```bash
 docker compose run --rm dev python src/run_aoi_prediction.py --aoi data/aoi/<file>.geojson   # AOI อื่น
+docker compose run --rm dev python src/run_aoi_prediction.py --buffer-km 1                   # ขยายแปลงออก 1 กม.
+docker compose run --rm dev python src/run_aoi_prediction.py --output-dir outputs/xxx        # เปลี่ยนโฟลเดอร์ output
 docker compose run --rm dev python src/run_aoi_prediction.py --skip-predict                  # สรุปใหม่จากผลที่มีอยู่
 docker compose run --rm dev python src/run_aoi_prediction.py --force                         # predict ใหม่ทั้งหมด
 docker compose run --rm dev bash                                                             # shell ใน container
@@ -42,6 +44,10 @@ docker compose up -d jupyter                                                    
 1. วางไฟล์ vector ที่มี CRS (GeoJSON/GPKG/SHP) ไว้ที่ `data/aoi/` **ไม่บังคับชื่อคอลัมน์** ใช้แค่ geometry
 2. แก้ `aoi.path` ใน `config/config.yaml` หรือส่งผ่าน `--aoi`
 3. ถ้าอยากให้ชื่อแปลงติดไปใน output ให้ใส่ชื่อคอลัมน์ไว้ที่ `aoi.id_fields`
+4. ถ้าต้องการขยายแปลงออกจากขอบ ให้ใส่ `--buffer-km N` (หรือ `aoi.buffer_km`) ค่า default คือ 0
+   ระบบจะ predict และสรุปบนแปลงที่ขยายแล้ว output อยู่ที่ `<ชื่อ AOI>_buf<N>km/` (แปลงที่ขยายจนทับกัน พื้นที่ส่วนที่ทับจะถูกนับในทั้งสองแปลง)
+
+ถ้าใช้ชื่อไฟล์ AOI เดิมแต่แก้ geometry ต้องใส่ `--force` ไม่อย่างนั้นจะใช้ผล predict ของเดิม
 
 แปลงต้องอยู่ใน zone ที่มี datacube อยู่แล้ว คือ `zone_1`–`zone_5` (เชียงใหม่) และ `mfl_cmf_area_project_2025_chr_zone_1/2` (เชียงราย)
 แปลงที่อยู่นอก zone จะขึ้น WARNING แล้วถูกข้ามไป
@@ -67,7 +73,8 @@ docker compose up -d jupyter                                                    
 | `prediction.model_version` / `model_file` | `2.2.2` / `hybrid_lstm_cnn_model-*-no-leakage.keras` |
 | `prediction.datacube_dir` | `/fs2/ftype_mflf/shared_data/datacube/2025/1.2.0` (mount แบบ read-only) |
 | `prediction.years` | 2019–2025 |
-| `aoi.path`, `aoi.id_fields`, `aoi.output_dir` | ไฟล์ AOI, คอลัมน์ที่จะใส่ใน output, โฟลเดอร์ output |
+| `aoi.path`, `aoi.id_fields`, `aoi.output_dir` | ไฟล์ AOI, คอลัมน์ที่จะใส่ใน output, โฟลเดอร์ output (`--aoi`, `--output-dir`) |
+| `aoi.buffer_km` | ระยะขยายแปลง (กม.), 0 = ไม่ขยาย (`--buffer-km`) |
 | `paths.training_dataset`, `paths.logs_dir` | dataset สำหรับ train (`dataset_builder`), โฟลเดอร์ log |
 
 ข้อมูลกลางทั้งหมดถูก mount แบบ **read-only** ใน container ผลทุกอย่างจะเขียนได้เฉพาะใน `outputs/` ของ repo

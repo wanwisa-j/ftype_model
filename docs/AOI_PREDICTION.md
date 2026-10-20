@@ -80,6 +80,7 @@ prediction:
 aoi:
   path: "data/aoi/ftype_lu_addarea_dissolved_cmf_moo.geojson"
   id_fields: ["CMF_Name", "Moo", "Tambon", "Amphoe", "Province"]
+  buffer_km: 0          # ขยายแปลงออก N กม. (ติดลบ = หดเข้า); output -> <stem>_buf<N>km/
   output_dir: "outputs/aoi"
 ```
 
@@ -139,7 +140,8 @@ docker compose run --rm dev python src/prediction_ftype_2_2_1.py --zones zone_1 
 
 ## 5. การทำงานของ `src/run_aoi_prediction.py`
 
-1. **อ่าน AOI** แล้วตัดค่า Z ทิ้ง (`force_2d`)
+1. **อ่าน AOI** แล้วตัดค่า Z ทิ้ง (`force_2d`) ถ้ามี `--buffer-km`/`aoi.buffer_km` จะขยายแต่ละแปลงบน UTM (หน่วยเมตร) แล้วแปลงกลับ
+   แปลงที่หายไปหลัง buffer ติดลบจะถูกข้ามไป ส่วนพื้นที่ที่ยื่นออกนอก datacube ดูได้จาก `pixels_predicted` < `pixels_total`
 2. **จับคู่แปลงกับ zone**: อ่านขอบเขตของ `slope/*.tif` ทุก zone (ข้าม `*_backup_*`)
    แต่ละแปลงจะได้ zone ที่ทับซ้อนกันมากที่สุด ถ้าแปลงไม่อยู่ใน zone ไหนเลยจะขึ้น WARNING แล้วข้ามไป
 3. **Predict (ค่า default: โหมด AOI)** โหลดโมเดลครั้งเดียว แล้วต่อ zone: อ่านเฉพาะ window ที่ครอบแปลงของ zone นั้น

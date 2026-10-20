@@ -19,7 +19,8 @@ All paths come from config/config.yaml (`prediction` + `aoi` sections):
        outputs/aoi/<aoi stem>/rasters/<zone>_majority.tif  (AOI-masked)
 
 Usage:
-    python src/run_aoi_prediction.py [--aoi path.geojson] [--force] [--skip-predict] [--full-zone]
+    python src/run_aoi_prediction.py [--aoi path.geojson] [--buffer-km 1] [--output-dir DIR]
+                                     [--force] [--skip-predict] [--full-zone]
 """
 import argparse
 import glob
@@ -249,6 +250,9 @@ if __name__ == '__main__':
     ap.add_argument('--aoi', default=cfg_aoi['path'], help='AOI vector file (default from config)')
     ap.add_argument('--force', action='store_true', help='Rerun prediction even if outputs exist')
     ap.add_argument('--skip-predict', action='store_true', help='Only summarise existing predictions')
+    ap.add_argument('--buffer-km', type=float, default=cfg_aoi.get('buffer_km') or 0.0,
+                    help='Grow every polygon by this distance in km before predicting/summarising '
+                         '(negative shrinks; default: aoi.buffer_km in config, else 0)')
     ap.add_argument('--output-dir', default=None,
                     help='Parent folder for AOI outputs (default: aoi.output_dir in config)')
     ap.add_argument('--full-zone', action='store_true',
@@ -257,6 +261,9 @@ if __name__ == '__main__':
 
     aoi_path = repo_path(args.aoi)
     stem = os.path.splitext(os.path.basename(aoi_path))[0]
+    if args.buffer_km:
+        # Own output folder per buffer, so predictions of another extent are never reused
+        stem = f'{stem}_buf{args.buffer_km:g}km'
     t0, started = time.time(), datetime.now()
     aoi_out = os.path.join(repo_path(args.output_dir or cfg_aoi['output_dir']), stem)
     pred_dir = repo_path(cfg['output_dir']) if args.full_zone else os.path.join(aoi_out, 'prediction')
@@ -264,6 +271,16 @@ if __name__ == '__main__':
 
     aoi = gpd.read_file(aoi_path)
     aoi['geometry'] = aoi.geometry.force_2d()
+    if args.buffer_km:
+        if aoi.crs is None:
+            raise ValueError(f'{aoi_path} has no CRS; cannot buffer in km')
+        metric = aoi.estimate_utm_crs()
+        aoi['geometry'] = aoi.geometry.to_crs(metric).buffer(args.buffer_km * 1000).to_crs(aoi.crs)
+        empty = aoi.geometry.is_empty
+        if empty.any():
+            print(f'WARNING: {empty.sum()} polygons vanished after a {args.buffer_km:g} km buffer and are skipped')
+            aoi = aoi[~empty].copy()
+        print(f'Buffer: {args.buffer_km:g} km ({metric})')
     footprints = zone_footprints(repo_path(cfg['datacube_dir']))
     aoi['zone'] = assign_zones(aoi, footprints)
     outside = aoi['zone'].isna()
@@ -291,7 +308,7 @@ if __name__ == '__main__':
 
     commit = git_commit()
     run_info = {
-        'aoi': aoi_path, 'polygons': int(len(aoi)), 'zones': zones,
+        'aoi': aoi_path, 'buffer_km': args.buffer_km, 'polygons': int(len(aoi)), 'zones': zones,
         'mode': 'skip-predict' if args.skip_predict else ('full-zone' if args.full_zone else 'aoi'),
         'prediction_dir': pred_dir, 'model_version': cfg['model_version'], 'years': cfg['years'],
         'git_commit': commit, 'started': started.isoformat(timespec='seconds'),

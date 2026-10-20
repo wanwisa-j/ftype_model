@@ -24,6 +24,8 @@ ENV HOME=/tmp/home \
 # PROJ/rasterio) and can't find the pip CUDA libs (e.g. libcusolver.so.11).
 ENV LD_LIBRARY_PATH=/workspace/.venv-docker/lib:$NV/cublas/lib:$NV/cuda_cupti/lib:$NV/cuda_nvrtc/lib:$NV/cuda_runtime/lib:$NV/cudnn/lib:$NV/cufft/lib:$NV/curand/lib:$NV/cusolver/lib:$NV/cusparse/lib:$NV/nccl/lib:$NV/nvjitlink/lib
 ENV \
+    PROJ_DATA=/workspace/.venv-docker/share/proj \
+    GDAL_DATA=/workspace/.venv-docker/share/gdal \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TF_CPP_MIN_LOG_LEVEL=1

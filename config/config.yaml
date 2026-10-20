@@ -19,4 +19,5 @@ prediction:
 aoi:
   path: "data/aoi/ftype_lu_addarea_dissolved_cmf_moo.geojson"
   id_fields: ["CMF_Name", "Moo", "Tambon", "Amphoe", "Province"]
+  buffer_km: 0                             # grow polygons by N km (0 = as drawn); output -> <stem>_buf<N>km/
   output_dir: "outputs/aoi"                # -> <aoi file stem>/...
